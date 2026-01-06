@@ -6,6 +6,19 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
 
     Event:CreateSection("New Year Event")
 
+    local function isMultiHarvest(seedName)
+        if not allSeedsData then
+            warn("[isMultiHarvest] allSeedsData is nil")
+            return false
+        end
+        local seedData = allSeedsData[seedName]
+        if not seedData then
+            warn("[isMultiHarvest] No data found for seed:", seedName)
+            return false
+        end
+        return seedData.HarvestType == "Multi"
+    end
+
     local autoSpinEnabled = false
     local autoSpinThread = nil
     Event:CreateToggle({
@@ -86,7 +99,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                             game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 5):WaitForChild("Crops", 5):WaitForChild("Collect", 5):FireServer(unpack(args))
                             collected = collected + 1
                             if collected >= targetCount then
-                                return
+                                return collected
                             end
                         end
                         task.wait(0.01)
@@ -103,7 +116,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                         game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 5):WaitForChild("Crops", 5):WaitForChild("Collect", 5):FireServer(unpack(args))
                         collected = collected + 1
                         if collected >= targetCount then
-                            return
+                            return collected
                         end
                     end
                     task.wait(0.01)
@@ -129,6 +142,78 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             task.wait(0.1)
         end
     end
+
+    local function getPlantCountByName(plantName)
+        local myFarm = getMyFarm()
+        if not myFarm then
+            warn("[getPlantCountByName] myFarm is nil")
+            return 0
+        end
+
+        local important = myFarm:FindFirstChild("Important")
+        if not important then
+            warn("[getPlantCountByName] Important folder not found")
+            return 0
+        end
+
+        local plantsFolder = important:FindFirstChild("Plants_Physical")
+        if not plantsFolder then
+            warn("[getPlantCountByName] Plants_Physical folder not found")
+            return 0
+        end
+
+        local count = 0
+        for _, plant in ipairs(plantsFolder:GetChildren()) do
+            if plant:IsA("Model") or plant:IsA("Folder") then
+                if plant.Name == plantName then
+                    count = count + 1
+                end
+            end
+        end
+
+        return count
+    end
+
+    local function shovelByFruitName(fruitName, shovelCount)
+        if not myFarm or shovelCount <= 0 then return end
+
+        local important = myFarm:FindFirstChild("Important")
+        if not important then
+            warn("[shovelByFruitName] Important folder not found")
+            return
+        end
+
+        local plantsFolder = important:FindFirstChild("Plants_Physical")
+        if not plantsFolder then
+            warn("[shovelByFruitName] Plants_Physical folder not found")
+            return
+        end
+
+        local allPlants = plantsFolder:GetChildren()
+        local shovelsDone = 0
+
+        for _, plant in ipairs(allPlants) do
+            if shovelsDone >= shovelCount then
+                break
+            end
+
+            if plant:IsA("Model") or plant:IsA("Folder") then
+                local curPlantName = plant.Name
+                if curPlantName == fruitName then
+                    equipItemByExactName("Shovel [Destroy Plants]")
+                    task.wait(0.1)
+                    local args = {[1] = plant}
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 5)
+                        :WaitForChild("Remove_Item", 5)
+                        :FireServer(unpack(args))
+                    shovelsDone = shovelsDone + 1
+                end
+            end
+        end
+
+        print(("[shovelByFruitName] Shoveled %d/%d %s"):format(shovelsDone, shovelCount, fruitName))
+    end
+
 
     local function getPlayerData()
         local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
@@ -161,11 +246,25 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                     while autoQuestHarvestEnabled do
                         local containerId, quests = getGardenEventQuests()
                         for _, data in pairs(quests) do
+                            local curQuestPlantedMissing = false
                             if data.Completed == false and data.Type == "Harvest" then
                                 local fruitTarget = data.Arguments[1]
                                 local harvestTarget = data.Target
-                                collectFruitWithCount(fruitTarget, harvestTarget)
+                                local collectedAfter = collectFruitWithCount(fruitTarget, harvestTarget)
+                                --plant missing
+                                if not isMultiHarvest(fruitTarget) then
+                                    local needToPlant = harvestTarget - collectedAfter
+                                    plantFruitWithCount(fruitTarget, needToPlant)
+                                    curQuestPlantedMissing = true
+                                else
+                                    local currentPlantCount = getPlantCountByName(fruitTarget)
+                                    local needToPlant = 10 - currentPlantCount
+                                    if needToPlant > 0 then
+                                        plantFruitWithCount(fruitTarget, needToPlant)
+                                    end
+                                end 
                             end
+                            
                             if data.Completed == true and data.Claimed == false then
                                 local args = {
                                     [1] = containerId,
@@ -187,6 +286,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
 
     local autoQuestPlantEnabled = false
     local autoQuestPlantThread = nil
+    local autoPantQuestPlanted = 0
     Event:CreateToggle({
         Name = "Auto Quest (Plant)",
         CurrentValue = false,
@@ -205,6 +305,14 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                 local fruitTarget = data.Arguments[1]
                                 local plantTarget = data.Target
                                 plantFruitWithCount(fruitTarget, plantTarget)
+                                --auto shovel after plant multi harvest
+                                if isMultiHarvest(fruitTarget) then
+                                    autoPantQuestPlanted = plantTarget
+                                    task.wait(2)
+                                    shovelByFruitName(fruitTarget, autoPantQuestPlanted)
+                                    autoPantQuestPlanted = 0
+                                end
+                                
                             end
                             if data.Completed == true and data.Claimed == false then
                                 local args = {
@@ -313,7 +421,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                             local waited = 0
                             while waited < 10 do
                                 task.wait(0.5)
-                                waited += 0.5
+                                waited = waited + 0.5
                                 listToBuy = dropdown_eventShopItems and dropdown_eventShopItems.CurrentOption or {}
                                 if #listToBuy > 0 then
                                     break
