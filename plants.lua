@@ -1,6 +1,6 @@
 local M = {}
 
-function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equipItemByName, equipItemByNameV2, getMyFarm, getFarmSpawnCFrame, getAllPetNames, sendDiscordWebhook)
+function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equipItemByName, equipItemByNameV2, getMyFarm, getFarmSpawnCFrame, getAllPetNames, sendDiscordWebhook, allSeedsData, allSeedsOnly, equipFruitById)
     local Plants = Window:CreateTab("Plants", "leaf")
     local myFarm = getMyFarm()
     local maxFruitInBag = false
@@ -14,18 +14,18 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         end
     end)
 
-    local function getAllSeedsTable()
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local ItemModule = require(ReplicatedStorage:WaitForChild("Item_Module"))
-        if typeof(ItemModule.Return_All_Seeds) ~= "function" then
-            return nil
-        end
-        local result = ItemModule.Return_All_Seeds()
-        if typeof(result) ~= "table" then
-            return nil
-        end
-        return result
-    end
+    -- local function getAllSeedsTable()
+    --     local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    --     local ItemModule = require(ReplicatedStorage:WaitForChild("Item_Module"))
+    --     if typeof(ItemModule.Return_All_Seeds) ~= "function" then
+    --         return nil
+    --     end
+    --     local result = ItemModule.Return_All_Seeds()
+    --     if typeof(result) ~= "table" then
+    --         return nil
+    --     end
+    --     return result
+    -- end
 
     local function equipItemByExactName(itemName)
         local player = game.Players.LocalPlayer
@@ -43,21 +43,22 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         return false
     end
 
-    print("[BeastHub] Loading all seeds data..")
-    local allSeedsData = getAllSeedsTable()
-    local allSeedsOnly = {}
 
-    if allSeedsData then
-        for _, data in pairs(allSeedsData) do
-            if typeof(data) == "table" and data[2] then
-                table.insert(allSeedsOnly, data[2])
-            end
+    local function isMultiHarvest(seedName)
+        if not allSeedsData then
+            warn("[isMultiHarvest] allSeedsData is nil")
+            return false
         end
-        print("[BeastHub] All seeds data loaded")
-    else
-        warn("[BeastHub] Failed to load seeds data")
+
+        local seedData = allSeedsData[seedName]
+        if not seedData then
+            warn("[isMultiHarvest] No data found for seed:", seedName)
+            return false
+        end
+
+        return seedData.HarvestType == "Multi"
     end
-    table.sort(allSeedsOnly)
+
 
     local function getMutationEnumTable()
         local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -624,7 +625,6 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
 
     local autoShovelSprinklerEnabled = false
     local autoShovelSprinklerThread = nil
-
     Plants:CreateToggle({
         Name = "Auto Shovel Sprinklers",
         CurrentValue = false,
