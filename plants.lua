@@ -2,13 +2,15 @@ local M = {}
 
 function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equipItemByName, equipItemByNameV2, getMyFarm, getFarmSpawnCFrame, getAllPetNames, sendDiscordWebhook)
     local Plants = Window:CreateTab("Plants", "leaf")
-
+    local myFarm = getMyFarm()
     local maxFruitInBag = false
+    local maxFruitInBagAutoSellTrigger = false
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local Notification = ReplicatedStorage.GameEvents.Notification
     Notification.OnClientEvent:Connect(function(message)
         if typeof(message) == "string" and message:lower():find("max backpack space! go sell!") then
             maxFruitInBag = true
+            maxFruitInBagAutoSellTrigger = true
         end
     end)
 
@@ -23,6 +25,22 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             return nil
         end
         return result
+    end
+
+    local function equipItemByExactName(itemName)
+        local player = game.Players.LocalPlayer
+        local backpack = player:WaitForChild("Backpack")
+        -- player.Character.Humanoid:UnequipTools() --unequip all first
+
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name == itemName then
+                --print("Equipping:", tool.Name)
+                -- player.Character.Humanoid:UnequipTools() --unequip all first
+                player.Character.Humanoid:EquipTool(tool)
+                return true -- stop after first match
+            end
+        end
+        return false
     end
 
     print("[BeastHub] Loading all seeds data..")
@@ -218,6 +236,82 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         end,
     })
 
+    local function teleportToNPC(npcName)
+        local Players = game:GetService("Players")
+        local player = Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+        local npc = workspace:WaitForChild("NPCS"):WaitForChild(npcName)
+        local baseCFrame
+        if npc.PrimaryPart then
+            baseCFrame = npc.PrimaryPart.CFrame
+        else
+            baseCFrame = npc:GetPivot()
+        end
+        local offset = baseCFrame.LookVector * 6 + Vector3.new(0, 4, 0)
+        hrp.CFrame = baseCFrame + offset
+        return hrp
+    end
+
+    local function autoSellWhenFull()
+        local Players = game:GetService("Players")
+        local player = Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+        local originalCFrame = hrp.CFrame
+        teleportToNPC("Steven")
+        task.wait(1)
+        local success = pcall(function()
+            local args = {}
+            game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("Sell_Inventory", 9e9):FireServer(unpack(args))
+        end)
+        if success then
+            task.wait(0.5)
+            hrp.CFrame = originalCFrame
+        end
+    end
+
+    local autoSellWhenFullEnabled = false
+    local autoSellWhenFullThread = nil
+    Plants:CreateToggle({
+        Name = "Auto Sell All fruits When Full",
+        CurrentValue = false,
+        Flag = "autoSellWhenFull",
+        Callback = function(Value)
+            autoSellWhenFullEnabled = Value
+
+            if autoSellWhenFullEnabled then
+                if autoSellWhenFullThread then
+                    return
+                end
+                autoSellWhenFullThread = task.spawn(function()
+                    while autoSellWhenFullEnabled do
+                        if maxFruitInBagAutoSellTrigger then
+                            maxFruitInBagAutoSellTrigger = false
+                            autoSellWhenFull()
+                        end
+                        task.wait(2) 
+                    end
+                    autoSellWhenFullThread = nil
+                end)
+            else
+                autoSellWhenFullEnabled = false
+                if autoSellWhenFullThread then
+                    autoSellWhenFullThread = nil
+                end
+            end
+        end,
+    })
+
+
+    local toggle_stopCollectWhenFUll = Plants:CreateToggle({
+        Name = "Stop collect when full (collect again after 1 min)",
+        CurrentValue = false,
+        Flag = "stopCollectWhenFull",
+        Callback = function(Value)
+        end,
+    })
+
     local autoCollectFruitEnabled = false
     local autoCollectFruitThread = nil
     Plants:CreateToggle({
@@ -282,7 +376,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 if #mutations == 0 then mutations = {nil} end
 
                 beastHubNotify("Auto Collect Fruit running", "", 3)
-                local myFarm = getMyFarm()
+                -- local myFarm = getMyFarm()
                 local function hasMatchingMutation(fruitInstance, mutations)
                     if not mutations or #mutations == 0 or (mutations[1] == nil) then
                         return true -- no mutation filter selected, allow
@@ -364,7 +458,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                             local isKgAllowed = kgAllowed(fruitInstance, kgMode, kgValue)
                                             local fruitMatch = (#fruits == 0) or (table.find(fruits, curFruitName) ~= nil)
                                             if fruitMatch and variantAllowed and mutationAllowed and isKgAllowed then
-                                                if maxFruitInBag then
+                                                if maxFruitInBag and toggle_stopCollectWhenFUll.CurrentValue == true then
                                                     task.wait(60)
                                                     maxFruitInBag = false
                                                 end
@@ -389,7 +483,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                         local isKgAllowed = kgAllowed(plant, kgMode, kgValue)
                                         local fruitMatch = (#fruits == 0) or (table.find(fruits, curFruitName) ~= nil)
                                         if fruitMatch and variantAllowed and mutationAllowed and isKgAllowed then
-                                            if maxFruitInBag then
+                                            if maxFruitInBag and toggle_stopCollectWhenFUll.CurrentValue == true then
                                                 task.wait(60)
                                                 maxFruitInBag = false
                                             end
@@ -416,11 +510,120 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             else
                 autoCollectFruitEnabled = false
                 autoCollectFruitThread = nil
-                beastHubNotify("Auto Collect Fruit disabled", "", 3)
+                -- beastHubNotify("Auto Collect Fruit disabled", "", 3)
             end
         end,
     })
     Plants:CreateDivider()
+
+    -- Auto Shovel
+    Plants:CreateSection("Auto Shovel Plant")
+    local selectedPlantsForAutoShovel = {}
+
+    local dropdown_selectedPlantForAutoShovel = Plants:CreateDropdown({
+        Name = "Select Plant",
+        Options = allSeedsOnly, -- start empty, will refresh
+        CurrentOption = {},
+        MultipleOptions = true,
+        Flag = "selectedPlant_autoShovel",
+        Callback = function(Options)
+            selectedPlantsForAutoShovel = Options
+        end,
+    })
+    local searchDebounce_shovel = nil
+    Plants:CreateInput({
+        Name = "Search plant",
+        PlaceholderText = "plant",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            if searchDebounce_shovel then
+                task.cancel(searchDebounce_shovel)
+            end
+            searchDebounce_shovel = task.delay(0.5, function()
+                local results = {}
+                local query = string.lower(Text)
+
+                if query == "" then
+                    results = allSeedsOnly
+                else
+                    for _, plantName in ipairs(allSeedsOnly) do
+                        if string.find(string.lower(plantName), query, 1, true) then
+                            table.insert(results, plantName)
+                        end
+                    end
+                end
+                dropdown_selectedPlantForAutoShovel:Refresh(results)
+                dropdown_selectedPlantForAutoShovel:Set(selectedPlantsForAutoShovel) --set to current selected
+
+            end)
+        end,
+    })
+    Plants:CreateButton({
+        Name = "Clear plant",
+        Callback = function()
+            dropdown_selectedPlantForAutoShovel:Set({})
+        end,
+    })
+
+    local autoShovelPlantEnabled = false
+    local autoShovelPlantThread = nil
+    Plants:CreateToggle({
+        Name = "Auto Shovel Plant",
+        CurrentValue = false,
+        Flag = "autoShovelPlant",
+        Callback = function(Value)
+            autoShovelPlantEnabled = Value
+
+            if autoShovelPlantEnabled then
+                if autoShovelPlantThread then return end
+                autoShovelPlantThread = task.spawn(function()
+                    while autoShovelPlantEnabled do
+                        if myFarm and #selectedPlantsForAutoShovel > 0 then
+                            local timeout = 3
+                            local important = myFarm:WaitForChild("Important", timeout)
+                            if not important then
+                                task.wait(2)
+                                continue
+                            end
+                            local plantsFolder = important:FindFirstChild("Plants_Physical")
+                            if not plantsFolder then
+                                task.wait(2)
+                                continue
+                            end
+
+                            local allPlants = plantsFolder:GetChildren()
+
+                            for _, plant in ipairs(allPlants) do
+                                if plant:IsA("Model") or plant:IsA("Folder") then
+                                    local curPlantName = plant.Name
+                                    local plantMatch = table.find(selectedPlantsForAutoShovel, curPlantName) ~= nil
+                                    if plantMatch then
+                                        equipItemByExactName("Shovel [Destroy Plants]")
+                                        task.wait(0.1)
+                                        local args = {[1] = plant}
+                                        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 5)
+                                            :WaitForChild("Remove_Item", 5)
+                                            :FireServer(unpack(args))
+                                    end
+                                end
+                            end
+                        end
+                        task.wait(0.2) -- loop delay
+                    end
+                    autoShovelPlantThread = nil
+                end)
+            else
+                autoShovelPlantEnabled = false
+                if autoShovelPlantThread then
+                    autoShovelPlantThread = nil
+                end
+            end
+        end,
+    })
+
+    Plants:CreateDivider()
+
+
 
 
 end
