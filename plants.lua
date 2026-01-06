@@ -620,11 +620,62 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             end
         end,
     })
-
     Plants:CreateDivider()
 
+    local autoShovelSprinklerEnabled = false
+    local autoShovelSprinklerThread = nil
 
+    Plants:CreateToggle({
+        Name = "Auto Shovel Sprinklers",
+        CurrentValue = false,
+        Flag = "autoShovelSprinklers",
+        Callback = function(Value)
+            autoShovelSprinklerEnabled = Value
 
+            if autoShovelSprinklerEnabled then
+                if autoShovelSprinklerThread then return end
+                autoShovelSprinklerThread = task.spawn(function()
+                    while autoShovelSprinklerEnabled do
+                        if myFarm then
+                            local timeout = 3
+                            local important = myFarm:WaitForChild("Important", timeout)
+                            if not important then
+                                task.wait(0.5)
+                                continue
+                            end
+
+                            local objectsFolder = important:FindFirstChild("Objects_Physical")
+                            if not objectsFolder then
+                                task.wait(0.5)
+                                continue
+                            end
+
+                            for _, obj in ipairs(objectsFolder:GetChildren()) do
+                                if string.find(obj.Name, "Sprinkler") then
+                                    equipItemByExactName("Shovel [Destroy Plants]")
+                                    task.wait(0.1)
+                                    local args = {[1] = obj}
+                                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 5)
+                                        :WaitForChild("DeleteObject", 5)
+                                        :FireServer(unpack(args))
+                                    task.wait(0.15)
+                                end
+                            end
+                        end
+                        task.wait(1)
+                    end
+                    autoShovelSprinklerThread = nil
+                end)
+            else
+                autoShovelSprinklerEnabled = false
+                if autoShovelSprinklerThread then
+                    autoShovelSprinklerThread = nil
+                end
+            end
+        end,
+    })
+
+    Plants:CreateDivider()
 
 end
 
