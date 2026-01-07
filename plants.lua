@@ -351,7 +351,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                         break
                     end
                     task.wait(0.5)
-                    waited += 0.5
+                    waited = waited + 0.5
                 end
                 fruits = typeof(fruits) == "table" and fruits or {}
                 variants = dropdown_selectedFruitVariantForAutoCollect and dropdown_selectedFruitVariantForAutoCollect.CurrentOption or {}
