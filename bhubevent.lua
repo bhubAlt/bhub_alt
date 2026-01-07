@@ -250,7 +250,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                             if data.Completed == false and data.Type == "Harvest" then
                                 local fruitTarget = data.Arguments[1]
                                 local harvestTarget = data.Target
-                                local collectedAfter = collectFruitWithCount(fruitTarget, harvestTarget)
+                                local collectedAfter = collectFruitWithCount(fruitTarget, harvestTarget) or 0
                                 --plant missing
                                 if not isMultiHarvest(fruitTarget) then
                                     local needToPlant = harvestTarget - collectedAfter
