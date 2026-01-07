@@ -46,6 +46,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         for mutationName, _ in pairs(machineMutations) do
             table.insert(names, tostring(mutationName))
         end
+        table.insert(names, "Giant Golem")
         table.sort(names)
         return names
     end
