@@ -843,7 +843,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                 break
                             end
                             task.wait(0.5)
-                            waited += 0.5
+                            waited = waited + 0.5
                         end
                         petList = dropdown_selectPetsForPetBoost and dropdown_selectPetsForPetBoost.CurrentOption or {}
                         toyList = typeof(toyList) == "table" and toyList or {}
