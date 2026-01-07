@@ -598,7 +598,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                 if plant:IsA("Model") or plant:IsA("Folder") then
                                     local curPlantName = plant.Name
                                     local plantMatch = table.find(selectedPlantsForAutoShovel, curPlantName) ~= nil
-                                    if plantMatch then
+                                    if plantMatch and autoShovelPlantEnabled then
                                         equipItemByExactName("Shovel [Destroy Plants]")
                                         task.wait(0.1)
                                         local args = {[1] = plant}
