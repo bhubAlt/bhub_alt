@@ -66,6 +66,22 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         return false
     end
 
+    local function equipItemByExactName(itemName)
+        local player = game.Players.LocalPlayer
+        local backpack = player:WaitForChild("Backpack")
+        -- player.Character.Humanoid:UnequipTools() --unequip all first
+
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name == itemName then
+                --print("Equipping:", tool.Name)
+                -- player.Character.Humanoid:UnequipTools() --unequip all first
+                player.Character.Humanoid:EquipTool(tool)
+                return true -- stop after first match
+            end
+        end
+        return false
+    end
+
     local myFarm = getMyFarm()
     local function collectFruitWithCount(fruitType, targetCount)
         local collected = 0
@@ -123,6 +139,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 end
             end
         end
+        return collected
     end
 
 
@@ -246,31 +263,37 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                     while autoQuestHarvestEnabled do
                         local containerId, quests = getGardenEventQuests()
                         for _, data in pairs(quests) do
-                            local curQuestPlantedMissing = false
-                            if data.Completed == false and data.Type == "Harvest" then
-                                local fruitTarget = data.Arguments[1]
-                                local harvestTarget = data.Target
-                                local collectedAfter = collectFruitWithCount(fruitTarget, harvestTarget) or 0
-                                --plant missing
-                                if not isMultiHarvest(fruitTarget) then
-                                    local needToPlant = harvestTarget - collectedAfter
-                                    plantFruitWithCount(fruitTarget, needToPlant)
-                                    curQuestPlantedMissing = true
-                                else
-                                    local currentPlantCount = getPlantCountByName(fruitTarget)
-                                    local needToPlant = 10 - currentPlantCount
-                                    if needToPlant > 0 then
-                                        plantFruitWithCount(fruitTarget, needToPlant)
-                                    end
-                                end 
+                            if typeof(data) ~= "table" then
+                                continue
                             end
-                            
+                            if data.Completed == false and data.Type == "Harvest" then
+                                local fruitTarget = data.Arguments and data.Arguments[1]
+                                local harvestTarget = tonumber(data.Target) or 0
+                                if fruitTarget and harvestTarget > 0 then
+                                    local collectedAfter = collectFruitWithCount(fruitTarget, harvestTarget) or 0
+                                    if not isMultiHarvest(fruitTarget) then
+                                        local needToPlant = harvestTarget - collectedAfter
+                                        if needToPlant > 0 then
+                                            plantFruitWithCount(fruitTarget, needToPlant)
+                                        end
+                                    else
+                                        local currentPlantCount = getPlantCountByName(fruitTarget)
+                                        local needToPlant = 10 - currentPlantCount
+                                        if needToPlant > 0 then
+                                            plantFruitWithCount(fruitTarget, needToPlant)
+                                        end
+                                    end
+                                end
+                            end
                             if data.Completed == true and data.Claimed == false then
                                 local args = {
                                     [1] = containerId,
                                     [2] = data.Id
                                 }
-                                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("Quests", 9e9):WaitForChild("Claim", 9e9):FireServer(unpack(args))
+                                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9)
+                                    :WaitForChild("Quests", 9e9)
+                                    :WaitForChild("Claim", 9e9)
+                                    :FireServer(unpack(args))
                             end
                         end
                         task.wait(2)
@@ -283,6 +306,8 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             end
         end,
     })
+
+
 
     local autoQuestPlantEnabled = false
     local autoQuestPlantThread = nil
