@@ -1671,9 +1671,10 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 Toggle_autoMutation:Set(false)
                 toggle_autoNM:Set(false)
 
-                local timeout = 5
+                local timeout = 10
                 while timeout > 0 and (
                     (not levelingLoady or levelingLoady == "None") and not (levelingLoady and string.find(levelingLoady, "custom", 1, true))
+                    or (not elephantLoady or elephantLoady == "None") and not (elephantLoady and string.find(elephantLoady, "custom", 1, true))
                     -- or toyForStacking.CurrentOption[1] == nil
                     or not selectedPetForAutoEle
                     -- or not tonumber(targetLevelForEle.CurrentValue)
@@ -1681,18 +1682,13 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                     or not tonumber(targetKGForEle.CurrentValue)
                     or autoLevelAfterAutoEleEnabled == nil 
                 ) do
-                    task.wait(1)
-                    timeout = timeout - 1
+                    task.wait(.5)
+                    timeout = timeout - .5
                 end
                 --checkers here, final check, works for sudden reconnection
-                -- local targetLevel = tonumber(targetLevelForEle.CurrentValue)
                 local targetKG = tonumber(targetKGForEle.CurrentValue)
-                -- local delayInMins = tonumber(delayInMinutesForToy.CurrentValue)
-                -- local toyToUse = toyForStacking.CurrentOption[1]
                 local eleUsed = elephantUsed.CurrentOption[1]
-                -- local isNum = targetLevel
                 local isNumKG = targetKG
-                -- local isNumDelay = delayInMins
 
                 if (not levelingLoady or levelingLoady == "None")  and not (levelingLoady and string.find(levelingLoady, "custom", 1, true))
                 or not selectedPetForAutoEle 
