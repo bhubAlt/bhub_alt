@@ -1,9 +1,223 @@
 local M = {}
-function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equipItemByName, equipItemByNameV2, getMyFarm, getFarmSpawnCFrame, getAllPetNames, sendDiscordWebhook)
+
+M.autoEleWebhook = false
+M.autoNMwebhook = false
+M.webhookURL = ""
+function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equipItemByName, equipItemByNameV2, getMyFarm, getFarmSpawnCFrame, getAllPetNames, sendDiscordWebhook, petListNamesOnlyAndSorted)
     local Pets = Window:CreateTab("Pets", "cat")
-    M.autoEleWebhook = false
-    M.autoNMwebhook = false
-    M.webhookURL = ""
+    
+    --auto fav unfav pet
+    local selectedPetsForAutoFav = {}
+    local selectedPetLookup = {}
+    local autoFavEnabled
+    local autoFavThread
+    local autoFavToggle
+
+    Pets:CreateSection("Auto Favorite/Unfavorite Pet")
+
+    local dropdown_favMode = Pets:CreateDropdown({
+        Name = "Select Mode",
+        Options = {"Auto Favorite", "Auto Unfavorite"},
+        CurrentOption = {"Auto Favorite"},
+        MultipleOptions = false,
+        Flag = "autoFavMode",
+        Callback = function(Options)
+            if autoFavToggle then
+                autoFavToggle:Set(false)
+                autoFavEnabled = false
+                autoFavThread = nil
+            end
+        end,
+    })
+    local dropdown_petToAutoFav = Pets:CreateDropdown({
+        Name = "Select Pet",
+        Options = petListNamesOnlyAndSorted,
+        CurrentOption = {},
+        MultipleOptions = true,
+        Flag = "petListForAutoFav", 
+        Callback = function(Options)
+            selectedPetsForAutoFav = Options  
+            table.clear(selectedPetLookup)
+            for _, name in ipairs(Options) do
+                selectedPetLookup[name] = true
+            end
+        end,
+    })
+    -- search pets
+    local PetssearchDebounce_autoFav = nil
+    Pets:CreateInput({
+        Name = "Search",
+        PlaceholderText = "Search Pet...",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            if PetssearchDebounce_autoFav then
+                task.cancel(PetssearchDebounce_autoFav)
+            end
+
+            PetssearchDebounce_autoFav = task.delay(0.5, function()
+                local results = {}
+                local query = string.lower(Text)
+
+                if query == "" then
+                    results = petListNamesOnlyAndSorted
+                else
+                    for _, petName in ipairs(petListNamesOnlyAndSorted) do
+                        if type(petName) == "string" then
+                            if string.find(string.lower(petName), query, 1, true) then
+                                table.insert(results, petName)
+                            end
+                        end
+                    end
+                end
+                dropdown_petToAutoFav:Refresh(results)
+                dropdown_petToAutoFav:Set(selectedPetsForAutoFav)
+            end)
+        end,
+    })
+    Pets:CreateButton({
+        Name = "Select All",
+        Callback = function()
+            local allOptions = dropdown_petToAutoFav.Options
+            if #allOptions == 0 then
+                return
+            end
+            dropdown_petToAutoFav:Set(allOptions)
+            selectedPetsForAutoFav = allOptions
+            table.clear(selectedPetLookup)
+            for _, v in ipairs(allOptions) do
+                selectedPetsForAutoFav[v] = true
+                selectedPetLookup[v] = true
+            end
+        end,
+    })
+    Pets:CreateButton({
+        Name = "Clear list",
+        Callback = function()
+            dropdown_petToAutoFav:Set({})
+            selectedPetsForAutoFav = {}
+            selectedPetLookup = {}
+        end,
+    })
+    local dropdown_selectedKgModeforAutoFav = Pets:CreateDropdown({
+        Name = "Below kg or Above kg",
+        Options = {"Below", "Above"},
+        CurrentOption = {"Above"},
+        MultipleOptions = false,
+        Flag = "selectedKGforAutoFav", 
+        Callback = function(Options)
+        end,
+    })
+
+    local input_kgForAutoFavPet = Pets:CreateInput({
+        Name = "KG",
+        CurrentValue = "3",
+        PlaceholderText = "number",
+        RemoveTextAfterFocusLost = false,
+        Flag = "kgForAutoFavPet",
+        Callback = function(Text)
+        -- The function that takes place when the input is changed
+        -- The variable (Text) is a string for the value in the text box
+        end,
+    })
+
+    autoFavToggle = Pets:CreateToggle({
+        Name = "Auto Favorite or Unfavorite Pet",
+        CurrentValue = false,
+        Flag = "autoFavPet",
+        Callback = function(Value)
+            autoFavEnabled = Value
+            -- 
+            if not Value then
+                autoFavEnabled = false
+                autoFavThread = nil
+                return
+            end
+
+            if autoFavEnabled then
+                local timeout = 5
+                while timeout > 0 and (
+                    not selectedPetsForAutoFav or #selectedPetsForAutoFav == 0
+                ) do
+                    task.wait(.5)
+                    timeout = timeout - .5
+                end
+
+                -- Checker for empty dropdown
+                if not selectedPetsForAutoFav or #selectedPetsForAutoFav == 0 then
+                    autoFavEnabled = false
+                    return
+                end
+                local player = game:GetService("Players").LocalPlayer
+                local rs = game:GetService("ReplicatedStorage")
+                local favUnfavEvent = rs.GameEvents.Favorite_Item
+                local backpack = player:WaitForChild("Backpack")
+
+                if autoFavThread then
+                    return
+                end
+
+                autoFavThread = task.spawn(function()
+                    local function getPlayerData()
+                        local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+                        local logs = dataService:GetData()
+                        return logs
+                    end
+                    while autoFavEnabled do
+                        if selectedPetsForAutoFav and backpack then
+                            -- collect all matching items
+                            local toFlip = {}
+                            --
+                            local petInventory = getPlayerData().PetsData.PetInventory.Data
+                            if petInventory then
+                                for petId, data in pairs(petInventory) do 
+                                    local petName = data.PetType
+                                    -- local petLevel = data.PetData.Level
+                                    -- local size = tonumber(string.format("%.2f", data.PetData.BaseWeight * 1.1))
+                                    if selectedPetLookup[petName] then
+                                        toFlip[petId] = true
+                                    end 
+                                end
+                            else
+                                warn("petInventory not found")
+                            end
+                            
+                            -- flip all to desired state
+                            for _, item in ipairs(backpack:GetChildren()) do
+                                if autoFavEnabled then
+                                    local curPetId = item:GetAttribute("PET_UUID") or nil
+                                    if curPetId and toFlip[curPetId] then
+                                        local d = item:GetAttribute("d")
+                                        local favMode = dropdown_favMode.CurrentOption[1]
+                                        local curWeight = tonumber(item.Name:match("%[(%d+%.?%d*)%s*[Kk][Gg]%]"))
+
+                                        local selectedKgMode = dropdown_selectedKgModeforAutoFav.CurrentOption[1]
+                                        local selectedKG = tonumber(input_kgForAutoFavPet.CurrentValue) or 3
+                                        if autoFavEnabled and favMode and selectedKgMode and favMode == "Auto Favorite" and selectedKgMode == "Above" and curWeight > selectedKG and d == false then
+                                            favUnfavEvent:FireServer(item) -- flip to favorite
+                                        elseif autoFavEnabled and favMode and selectedKgMode and favMode == "Auto Favorite" and selectedKgMode == "Below" and curWeight < selectedKG and d == false then
+                                            favUnfavEvent:FireServer(item)
+                                        elseif autoFavEnabled and favMode and selectedKgMode and favMode == "Auto Unfavorite" and selectedKgMode == "Above" and curWeight > selectedKG and d == true then
+                                            favUnfavEvent:FireServer(item) -- flip to unfavorite
+                                        elseif autoFavEnabled and favMode and selectedKgMode and favMode == "Auto Unfavorite" and selectedKgMode == "Below" and curWeight < selectedKG and d == true then
+                                            favUnfavEvent:FireServer(item) -- flip to unfavorite
+                                        end
+                                        task.wait()
+                                    end   
+                                end
+                            end
+                        end
+
+                        task.wait(2)
+                        if not autoFavEnabled then
+                            break
+                        end
+                    end
+
+                    autoFavThread = nil
+                end)
+            end
+        end,
+    })
 
     --Mutation machine
     --get pet mutations list
@@ -234,6 +448,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             selectedPetsForAutoMutation = {}
         end,
     })
+    
     --auto mutation flags moved top for the function to recognize them
     local autoPetMutationEnabled = false
     local autoPetMutationThread = nil
