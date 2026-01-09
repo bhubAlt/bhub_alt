@@ -20,6 +20,9 @@ M._autoBuySelectedSeedsRunning = false -- seeds
 M._autoBuyAllSeedsRunning = false
 M._autoBuySelectedEggsRunning = false -- eggs
 M._autoBuyAllEggsRunning = false
+M.techControl = { 
+    stop = false
+}
 
 M.shopConnections = {} -- store per-shop connections
 M._autoBuyTasks = {} -- store tasks per runningFlagFunc
@@ -481,7 +484,7 @@ function M.loadCustomTeam(customName, getFarmSpawnCFrame, beastHubNotify)
     -- beastHubNotify("Loaded "..customName, "", 3)
 end
 
-function M.loadCustomTeamDropdown(mimicsListFor9Pets, spiderFor9Pets, eagleFor9Pets, delayToStayInSpider, delayToStayInEagle, getFarmSpawnCFrame, beastHubNotify, techControl)    
+function M.loadCustomTeamDropdown(mimicsListFor9Pets, spiderFor9Pets, eagleFor9Pets, delayToStayInSpider, delayToStayInEagle, getFarmSpawnCFrame, beastHubNotify)    
     if type(mimicsListFor9Pets) ~= "table" or #mimicsListFor9Pets == 0 then
         beastHubNotify("Error: Mimics list is empty or invalid", "", 3)
         return
@@ -573,13 +576,14 @@ function M.loadCustomTeamDropdown(mimicsListFor9Pets, spiderFor9Pets, eagleFor9P
         local elapsed = 0
         beastHubNotify(prefix..math.floor(seconds - elapsed).."s left", "", 1)
         while elapsed < seconds do
-            if techControl.stop then
+            if M.techControl.stop then
                 break
             end
-            -- beastHubNotify(prefix..math.floor(seconds - elapsed).."s left", "", 1)
-            elapsed = elapsed + task.wait(1) -- wait 1 second per loop
+            local waited = task.wait(1)
+            elapsed = elapsed + waited
         end
     end
+
 
 
 
@@ -600,37 +604,41 @@ function M.loadCustomTeamDropdown(mimicsListFor9Pets, spiderFor9Pets, eagleFor9P
 		game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", id, location)
 		task.wait()
 	end
-	task.spawn(function()
-        while not techControl.stop do
+    
+
+    task.spawn(function()
+        while not M.techControl.stop do
             -- beastHubNotify("techControl: "..tostring(techControl.stop),"",3)
-            if spiderFor9Petsid and not techControl.stop then
+            if spiderFor9Petsid and not M.techControl.stop then
                 -- beastHubNotify("Spider time delay: "..tostring(delayToStayInSpider), "", delayToStayInSpider)
                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", spiderFor9Petsid, location)
                 waitWithStop("Spider delay: ", delayToStayInSpider)
                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", spiderFor9Petsid)
             end
-            if techControl.stop then
+            if M.techControl.stop then
                 break
             end
-            if eagleFor9Petsid and not techControl.stop then
+            if eagleFor9Petsid and not M.techControl.stop then
                 -- beastHubNotify("Eagle time delay: "..tostring(delayToStayInEagle), "", delayToStayInEagle)
                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", eagleFor9Petsid, location)
                 waitWithStop("Eagle delay: ", delayToStayInEagle)
                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", eagleFor9Petsid)
             end
-            if techControl.stop then
+            if M.techControl.stop then
                 break
             end
         end
     end)
+    
+   
 
 end
 
 
-function M.switchToLoadoutWithTech(mimicsListFor9Pets, spiderFor9Pets, eagleFor9Pets, delayToStayInSpider, delayToStayInEagle, getFarmSpawnCFrame, beastHubNotify, techControl)
+function M.switchToLoadoutWithTech(mimicsListFor9Pets, spiderFor9Pets, eagleFor9Pets, delayToStayInSpider, delayToStayInEagle, getFarmSpawnCFrame, beastHubNotify)
     local finalNum
     local success, err = pcall(function()
-        M.loadCustomTeamDropdown(mimicsListFor9Pets, spiderFor9Pets, eagleFor9Pets, delayToStayInSpider, delayToStayInEagle, getFarmSpawnCFrame, beastHubNotify, techControl)
+        M.loadCustomTeamDropdown(mimicsListFor9Pets, spiderFor9Pets, eagleFor9Pets, delayToStayInSpider, delayToStayInEagle, getFarmSpawnCFrame, beastHubNotify)
     end)
 
     if success then
