@@ -1221,7 +1221,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             else
                 autoPetFeedEnabled = false
                 autoPetFeedThread = nil
-                beastHubNotify("Auto pet feed disabled", "", 3)
+                -- beastHubNotify("Auto pet feed disabled", "", 3)
             end
         end,
     })
