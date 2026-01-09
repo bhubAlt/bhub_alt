@@ -600,11 +600,12 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                     local plantMatch = table.find(selectedPlantsForAutoShovel, curPlantName) ~= nil
                                     if plantMatch and autoShovelPlantEnabled then
                                         equipItemByExactName("Shovel [Destroy Plants]")
-                                        task.wait(0.1)
+                                        task.wait(0.005)
                                         local args = {[1] = plant}
                                         game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 5)
                                             :WaitForChild("Remove_Item", 5)
                                             :FireServer(unpack(args))
+                                        task.wait()
                                     end
                                 end
                             end
