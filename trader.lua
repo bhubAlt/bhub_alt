@@ -180,7 +180,55 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         end,
     })
     Trader:CreateDivider()
-    Trader:CreateSection("Auto trade ticket - Coming Soon..")
+    Trader:CreateSection("Trading Booth")
+    local autoClaimBoothEnabled = false
+    local autoClaimBoothThread = nil
+    Trader:CreateToggle({
+        Name = "Auto Claim Booth",
+        CurrentValue = false,
+        Flag = "autoClaimBooth",
+        Callback = function(Value)
+            autoClaimBoothEnabled = Value
+            if autoClaimBoothEnabled then
+                if autoClaimBoothThread then
+                    return
+                end
+                -- beastHubNotify("Auto Claim Booth running", "", 3)
+                autoClaimBoothThread = task.spawn(function()
+                    local runCount = 0
+                    while autoClaimBoothEnabled and runCount < 1 do
+                        runCount = runCount + 1
+                        local boothsFolder = workspace:FindFirstChild("TradeWorld") and workspace.TradeWorld:FindFirstChild("Booths")
+                        if boothsFolder then
+                            for _, boothModel in ipairs(boothsFolder:GetChildren()) do
+                                if not autoClaimBoothEnabled then
+                                    break
+                                end
+                                if boothModel:IsA("Model") then
+                                    local dynamicInstances = boothModel:FindFirstChild("DynamicInstances")
+                                    if dynamicInstances and #dynamicInstances:GetChildren() == 0 then
+                                        local args = {
+                                            [1] = boothModel
+                                        }
+                                        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 5):WaitForChild("TradeEvents", 5):WaitForChild("Booths", 5):WaitForChild("ClaimBooth", 5):FireServer(unpack(args))
+                                        task.wait(5)
+                                    end
+                                end
+                            end
+                        end
+                        task.wait(5)
+                    end
+                    autoClaimBoothEnabled = false
+                    autoClaimBoothThread = nil
+                end)
+            else
+                autoClaimBoothEnabled = false
+                autoClaimBoothThread = nil
+            end
+        end,
+    })
+
+
     Trader:CreateDivider()
 
 end
