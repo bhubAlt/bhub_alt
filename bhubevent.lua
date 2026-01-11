@@ -4,7 +4,7 @@ local M = {}
 function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equipItemByName, equipItemByNameV2, getMyFarm, getFarmSpawnCFrame, getAllPetNames, sendDiscordWebhook, allSeedsData, allSeedsOnly, equipFruitById)
     local Event = Window:CreateTab("Event", "gift")
 
-    Event:CreateSection("New Year Event")
+    Event:CreateSection("Auto Feed Event")
 
     local function isMultiHarvest(seedName)
         if not allSeedsData then
@@ -19,10 +19,91 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         return seedData.HarvestType == "Multi"
     end
 
+    local selectedFruitsForAutoFeed = {}
+    local dropdown_selectedFruitForAutoFeed = Event:CreateDropdown({
+        Name = "Select Fruit",
+        Options = allSeedsOnly,
+        CurrentOption = {},
+        MultipleOptions = true,
+        Flag = "selectedFruit_autoFeed_event",
+        Callback = function(Options)
+            selectedFruitsForAutoFeed = Options
+        end
+    })
+    local searchDebounce_seedForFeed = nil
+    Event:CreateInput({
+        Name = "Search fruit",
+        PlaceholderText = "fruit",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            if searchDebounce_seedForFeed then
+                task.cancel(searchDebounce_seedForFeed)
+            end
+            searchDebounce_seedForFeed = task.delay(0.5, function()
+                local results = {}
+                local query = string.lower(Text)
+                if query == "" then
+                    results = allSeedsOnly
+                else
+                    for _, fruitName in ipairs(allSeedsOnly) do
+                        if string.find(string.lower(fruitName), query, 1, true) then
+                            table.insert(results, fruitName)
+                        end
+                    end
+                end
+                dropdown_selectedFruitForAutoFeed:Refresh(results)
+                dropdown_selectedFruitForAutoFeed:Set(selectedFruitsForAutoFeed)
+            end)
+        end
+    })
+    Event:CreateButton({
+        Name = "Clear fruit",
+        Callback = function()
+            dropdown_selectedFruitForAutoFeed:Set({})
+        end
+    })
     local autoSpinEnabled = false
     local autoSpinThread = nil
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local function getPlayerData()
+        local dataService = require(ReplicatedStorage.Modules.DataService)
+        return dataService:GetData()
+    end
+
+    local function getFeedFruitUid2(playerData, selectedFruits)
+        if not playerData or not playerData.InventoryData then
+            return nil
+        end
+        for uid, item in pairs(playerData.InventoryData) do
+            if item.ItemType == "Holdable" then
+                local itemData = item.ItemData
+                if itemData and not itemData.IsFavorite then
+                    if table.find(selectedFruits, itemData.ItemName) then
+                        return uid
+                    end
+                end
+            elseif item.ItemType == "Food" then
+                local ingredients = item.ItemData and item.ItemData.Ingredients
+                if ingredients then
+                    for ingUid, ing in pairs(ingredients) do
+                        if ing.ItemType == "Holdable" then
+                            local ingData = ing.ItemData
+                            if ingData and not ingData.IsFavorite then
+                                if table.find(selectedFruits, ingData.ItemName) then
+                                    return ingUid
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+
     Event:CreateToggle({
-        Name = "Auto Spin",
+        Name = "Auto Feed Event Pet",
         CurrentValue = false,
         Flag = "autoSpin",
         Callback = function(Value)
@@ -32,10 +113,34 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                     return
                 end
                 autoSpinThread = task.spawn(function()
-                    local rs = game:GetService("ReplicatedStorage")
-                    local spinEvent = rs:WaitForChild("GameEvents", 5):WaitForChild("GardenGame", 5):WaitForChild("Spin", 5)
                     while autoSpinEnabled do
-                        spinEvent:FireServer()
+                        local serverPetMover = workspace:FindFirstChild("PetsPhysical") and workspace.PetsPhysical:FindFirstChild("ServerPetMover")
+                        if serverPetMover then
+                            local serverPetModel
+                            for _, v in ipairs(serverPetMover:GetChildren()) do
+                                if v:IsA("Model") then
+                                    serverPetModel = v
+                                    break
+                                end
+                            end
+                            if serverPetModel then
+                                if selectedFruitsForAutoFeed and #selectedFruitsForAutoFeed > 0 then
+                                    local playerData = getPlayerData()
+                                    if playerData then
+                                        local fruitUid = getFeedFruitUid2(playerData, selectedFruitsForAutoFeed)
+                                        if fruitUid then
+                                            equipFruitById(fruitUid)
+                                            task.wait()
+                                            local args = {
+                                                [1] = "FeedServerPet",
+                                                [2] = serverPetModel.Name
+                                            }
+                                            ReplicatedStorage:WaitForChild("GameEvents", 5):WaitForChild("ActivePetService", 5):FireServer(unpack(args))
+                                        end
+                                    end
+                                end
+                            end
+                        end
                         task.wait(2)
                     end
                     autoSpinThread = nil
@@ -44,322 +149,9 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 autoSpinEnabled = false
                 autoSpinThread = nil
             end
-        end,
+        end
     })
 
-    local function equipItemByNameV3(itemName) --for plants
-        local player = game.Players.LocalPlayer
-        local backpack = player:WaitForChild("Backpack")
-        -- player.Character.Humanoid:UnequipTools()
-
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                local name = tool.Name
-                local cleaned = string.match(name, "^(.-)%s*%[X%d+%]$") or name
-                if cleaned == itemName then
-                    -- player.Character.Humanoid:UnequipTools()
-                    player.Character.Humanoid:EquipTool(tool)
-                    return true
-                end
-            end
-        end
-        return false
-    end
-
-    local function equipItemByExactName(itemName)
-        local player = game.Players.LocalPlayer
-        local backpack = player:WaitForChild("Backpack")
-        -- player.Character.Humanoid:UnequipTools() --unequip all first
-
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and tool.Name == itemName then
-                --print("Equipping:", tool.Name)
-                -- player.Character.Humanoid:UnequipTools() --unequip all first
-                player.Character.Humanoid:EquipTool(tool)
-                return true -- stop after first match
-            end
-        end
-        return false
-    end
-
-    local myFarm = getMyFarm()
-    local function collectFruitWithCount(fruitType, targetCount)
-        local collected = 0
-        if not myFarm then
-            return
-        end
-        local timeout = 3
-        local important = myFarm:WaitForChild("Important", timeout)
-        if not important then
-            return
-        end
-        local plantsFolder = important:WaitForChild("Plants_Physical", timeout)
-        if not plantsFolder then
-            return
-        end
-        local allPlants = plantsFolder:GetChildren()
-        for _, plant in ipairs(allPlants) do
-            if not (plant:IsA("Model") or plant:IsA("Folder")) then
-                continue
-            end
-            local fruitsFolder = plant:FindFirstChild("Fruits")
-            if fruitsFolder then
-                for _, fruitInstance in ipairs(fruitsFolder:GetChildren()) do
-                    if fruitInstance.Name == fruitType then
-                        if fruitInstance:IsA("Model") then
-                            local args = {
-                                [1] = {
-                                    [1] = fruitInstance
-                                }
-                            }
-                            game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 5):WaitForChild("Crops", 5):WaitForChild("Collect", 5):FireServer(unpack(args))
-                            collected = collected + 1
-                            if collected >= targetCount then
-                                return collected
-                            end
-                        end
-                        task.wait(0.01)
-                    end
-                end
-            else
-                if plant.Name == fruitType then
-                    if plant:IsA("Model") then
-                        local args = {
-                            [1] = {
-                                [1] = plant
-                            }
-                        }
-                        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 5):WaitForChild("Crops", 5):WaitForChild("Collect", 5):FireServer(unpack(args))
-                        collected = collected + 1
-                        if collected >= targetCount then
-                            return collected
-                        end
-                    end
-                    task.wait(0.01)
-                end
-            end
-        end
-        return collected
-    end
-
-
-
-    local function plantFruitWithCount(fruitType, targetCount)
-        local spawnCFrame = getFarmSpawnCFrame()
-        local offset = Vector3.new(8, 0, -50)
-        local dropPos = spawnCFrame:PointToWorldSpace(offset)
-        local seedName = fruitType .. " Seed"
-        equipItemByNameV3(seedName)
-        for i = 1, targetCount do
-            local args = {
-                [1] = dropPos,
-                [2] = fruitType
-            }
-            game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("Plant_RE", 9e9):FireServer(unpack(args))
-            task.wait(0.1)
-        end
-    end
-
-    local function getPlantCountByName(plantName)
-        local myFarm = getMyFarm()
-        if not myFarm then
-            warn("[getPlantCountByName] myFarm is nil")
-            return 0
-        end
-
-        local important = myFarm:FindFirstChild("Important")
-        if not important then
-            warn("[getPlantCountByName] Important folder not found")
-            return 0
-        end
-
-        local plantsFolder = important:FindFirstChild("Plants_Physical")
-        if not plantsFolder then
-            warn("[getPlantCountByName] Plants_Physical folder not found")
-            return 0
-        end
-
-        local count = 0
-        for _, plant in ipairs(plantsFolder:GetChildren()) do
-            if plant:IsA("Model") or plant:IsA("Folder") then
-                if plant.Name == plantName then
-                    count = count + 1
-                end
-            end
-        end
-
-        return count
-    end
-
-    local function shovelByFruitName(fruitName, shovelCount)
-        if not myFarm or shovelCount <= 0 then return end
-
-        local important = myFarm:FindFirstChild("Important")
-        if not important then
-            warn("[shovelByFruitName] Important folder not found")
-            return
-        end
-
-        local plantsFolder = important:FindFirstChild("Plants_Physical")
-        if not plantsFolder then
-            warn("[shovelByFruitName] Plants_Physical folder not found")
-            return
-        end
-
-        local allPlants = plantsFolder:GetChildren()
-        local shovelsDone = 0
-
-        for _, plant in ipairs(allPlants) do
-            if shovelsDone >= shovelCount then
-                break
-            end
-
-            if plant:IsA("Model") or plant:IsA("Folder") then
-                local curPlantName = plant.Name
-                if curPlantName == fruitName then
-                    equipItemByExactName("Shovel [Destroy Plants]")
-                    task.wait(0.1)
-                    local args = {[1] = plant}
-                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 5)
-                        :WaitForChild("Remove_Item", 5)
-                        :FireServer(unpack(args))
-                    shovelsDone = shovelsDone + 1
-                end
-            end
-        end
-
-        print(("[shovelByFruitName] Shoveled %d/%d %s"):format(shovelsDone, shovelCount, fruitName))
-    end
-
-
-    local function getPlayerData()
-        local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
-        return dataService:GetData()
-    end
-    local function getGardenEventQuests()
-        local playerData = getPlayerData()
-        local questContainers = playerData.QuestContainers
-        for containerId, data in pairs(questContainers) do
-            if data.Tag == "GardenGames" then
-                return containerId, data.Quests
-            end
-        end
-        return nil, {}
-    end
-
-    local autoQuestHarvestEnabled = false
-    local autoQuestHarvestThread = nil
-    Event:CreateToggle({
-        Name = "Auto Quest (Harvest)",
-        CurrentValue = false,
-        Flag = "autoQuestHarvest",
-        Callback = function(Value)
-            autoQuestHarvestEnabled = Value
-            if autoQuestHarvestEnabled then
-                if autoQuestHarvestThread then
-                    return
-                end
-                autoQuestHarvestThread = task.spawn(function()
-                    while autoQuestHarvestEnabled do
-                        local containerId, quests = getGardenEventQuests()
-                        for _, data in pairs(quests) do
-                            if typeof(data) ~= "table" then
-                                continue
-                            end
-                            if data.Completed == false and data.Type == "Harvest" then
-                                local fruitTarget = data.Arguments and data.Arguments[1]
-                                local harvestTarget = tonumber(data.Target) or 0
-                                if fruitTarget and harvestTarget > 0 then
-                                    local collectedAfter = collectFruitWithCount(fruitTarget, harvestTarget) or 0
-                                    if not isMultiHarvest(fruitTarget) then
-                                        local needToPlant = harvestTarget - collectedAfter
-                                        if needToPlant > 0 then
-                                            plantFruitWithCount(fruitTarget, needToPlant)
-                                        end
-                                    else
-                                        local currentPlantCount = getPlantCountByName(fruitTarget)
-                                        local needToPlant = 10 - currentPlantCount
-                                        if needToPlant > 0 then
-                                            plantFruitWithCount(fruitTarget, needToPlant)
-                                        end
-                                    end
-                                end
-                            end
-                            if data.Completed == true and data.Claimed == false then
-                                local args = {
-                                    [1] = containerId,
-                                    [2] = data.Id
-                                }
-                                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9)
-                                    :WaitForChild("Quests", 9e9)
-                                    :WaitForChild("Claim", 9e9)
-                                    :FireServer(unpack(args))
-                            end
-                        end
-                        task.wait(2)
-                    end
-                    autoQuestHarvestThread = nil
-                end)
-            else
-                autoQuestHarvestEnabled = false
-                autoQuestHarvestThread = nil
-            end
-        end,
-    })
-
-
-
-    local autoQuestPlantEnabled = false
-    local autoQuestPlantThread = nil
-    local autoPantQuestPlanted = 0
-    Event:CreateToggle({
-        Name = "Auto Quest (Plant)",
-        CurrentValue = false,
-        Flag = "autoQuestPlant",
-        Callback = function(Value)
-            autoQuestPlantEnabled = Value
-            if autoQuestPlantEnabled then
-                if autoQuestPlantThread then
-                    return
-                end
-                autoQuestPlantThread = task.spawn(function()
-                    while autoQuestPlantEnabled do
-                        local containerId, quests = getGardenEventQuests()
-                        for _, data in pairs(quests) do
-                            if data.Completed == false and data.Type == "Plant" then
-                                local fruitTarget = data.Arguments[1]
-                                local plantTarget = data.Target
-                                plantFruitWithCount(fruitTarget, plantTarget)
-                                --auto shovel after plant multi harvest
-                                if isMultiHarvest(fruitTarget) then
-                                    autoPantQuestPlanted = plantTarget
-                                    task.wait(2)
-                                    shovelByFruitName(fruitTarget, autoPantQuestPlanted)
-                                    autoPantQuestPlanted = 0
-                                end
-                                
-                            end
-                            if data.Completed == true and data.Claimed == false then
-                                local args = {
-                                    [1] = containerId,
-                                    [2] = data.Id
-                                }
-                                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("Quests", 9e9):WaitForChild("Claim", 9e9):FireServer(unpack(args))
-                            end
-                        end
-                        task.wait(2)
-                    end
-                    autoQuestPlantThread = nil
-                end)
-            else
-                autoQuestPlantEnabled = false
-                autoQuestPlantThread = nil
-            end
-        end,
-    })
-
-
-    
 
     Event:CreateDivider()
 
@@ -512,18 +304,18 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     
 
     --bring back
-    Event:CreateButton({
-        Name = "Show New Event platform",
-        Callback = function()
-            -- local ReplicatedStorage = game:GetService("ReplicatedStorage")
-            local newEvent = game:GetService("ReplicatedStorage").Modules.UpdateService.GardenGames
-            newEvent.Parent = workspace
+    -- Event:CreateButton({
+    --     Name = "Show New Event platform",
+    --     Callback = function()
+    --         -- local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    --         local newEvent = game:GetService("ReplicatedStorage").Modules.UpdateService.GardenGames
+    --         newEvent.Parent = workspace
 
-            local oldEvent = workspace.Interaction["New Year's Event"]
-            oldEvent.Parent = nil
-        end,
-    })
-    Event:CreateDivider()
+    --         local oldEvent = workspace.Interaction["New Year's Event"]
+    --         oldEvent.Parent = nil
+    --     end,
+    -- })
+    -- Event:CreateDivider()
 end
 
 return M
