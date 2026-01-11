@@ -1594,8 +1594,8 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 for line in string.gmatch(content, "([^\n]+)") do
                     local id = string.match(line, "({[%w%-]+})")
                     if id then
-                        print("id loaded")
-                        print(id or "")
+                        -- print("id loaded")
+                        -- print(id or "")
                         table.insert(ids, id)
                     end
                 end
@@ -1752,8 +1752,8 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 for line in string.gmatch(content, "([^\n]+)") do
                     local id = string.match(line, "({[%w%-]+})")
                     if id then
-                        print("id loaded")
-                        print(id or "")
+                        -- print("id loaded")
+                        -- print(id or "")
                         table.insert(ids, id)
                     end
                 end
@@ -1915,8 +1915,8 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 for line in string.gmatch(content, "([^\n]+)") do
                     local id = string.match(line, "({[%w%-]+})")
                     if id then
-                        print("id loaded")
-                        print(id or "")
+                        -- print("id loaded")
+                        -- print(id or "")
                         table.insert(ids, id)
                     end
                 end
