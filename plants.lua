@@ -357,17 +357,23 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 variants = dropdown_selectedFruitVariantForAutoCollect and dropdown_selectedFruitVariantForAutoCollect.CurrentOption or {}
                 mutations = dropdown_selectedFruitMutationForAutoCollect and dropdown_selectedFruitMutationForAutoCollect.CurrentOption or {}
                 kgMode = dropdown_selectedFruitKGmodeForAutoCollect and dropdown_selectedFruitKGmodeForAutoCollect.CurrentOption or {"Below"}
-                kgValue = typeof(kgValue) == "number" and kgValue or 0
+                kgValue = tonumber(kgValue)
+                if not kgValue then
+                    beastHubNotify("Please enter a valid KG value", "", 5)
+                    autoCollectFruitEnabled = false
+                    return
+                end
+
                 delayToCollect = typeof(delayToCollect) == "number" and delayToCollect or 0 
 
 
                 -- Input validation
                 if #fruits == 0 then
-                    beastHubNotify("Please select at least one fruit", "", 3)
+                    beastHubNotify("Please select at least one fruit", "", 5)
                     autoCollectFruitEnabled = false
                     return
                 elseif not kgValue or kgValue < 0 then
-                    beastHubNotify("Please input a valid KG value", "", 3)
+                    beastHubNotify("Please input a valid KG value", "", 5)
                     autoCollectFruitEnabled = false
                     return
                 end
@@ -411,19 +417,18 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 end
                 local function kgAllowed(fruitInstance, kgMode, kgValue)
                     if not fruitInstance then return false end
-                    if not kgMode or #kgMode == 0 or not kgValue or kgValue <= 0 then
-                        return true -- no kg filter, allow by default
+                    if not kgMode or #kgMode == 0 then
+                        return true -- no mode filter, allow by default
+                    end
+                    if not kgValue then
+                        return false -- require user to input KG
                     end
 
                     local weightObj = fruitInstance:FindFirstChild("Weight")
-                    if not weightObj then
-                        return false -- no weight info
-                    end
+                    if not weightObj then return false end
 
                     local fruitWeight = tonumber(weightObj.Value)
-                    if not fruitWeight then
-                        return false -- invalid weight
-                    end
+                    if not fruitWeight then return false end
 
                     local mode = kgMode[1]
                     if mode == "Above" then
@@ -431,9 +436,10 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                     elseif mode == "Below" then
                         return fruitWeight < kgValue
                     else
-                        return true -- unknown mode, default allow
+                        return false -- unknown mode, do not allow
                     end
                 end
+
 
                 -- local FruitCollectionController = require(game:GetService("ReplicatedStorage").Modules.FruitCollectionController)
                 autoCollectFruitThread = task.spawn(function()
@@ -782,11 +788,16 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 variants = dropdown_selectedFruitVariantForAutoShovel.CurrentOption or {}
                 mutations = dropdown_selectedFruitMutationForAutoShovel.CurrentOption or {}
                 kgMode = dropdown_selectedFruitKGmodeForAutoShovel.CurrentOption or {"Below"}
-                kgValue = typeof(kgValue) == "number" and kgValue or 0
-                local shovelDelay = tonumber(input_shovelDelay.CurrentValue) or 0.05
+                kgValue = tonumber(input_selectedFruitKGForAutoShovel.CurrentValue)
+                if not kgValue then
+                    beastHubNotify("Please enter a valid KG value", "", 5)
+                    autoShovelFruitEnabled = false
+                    return
+                end
+                local shovelDelay = tonumber(input_shovelDelay.CurrentValue) or 0
 
                 if #fruits == 0 then
-                    beastHubNotify("Please select at least one fruit", "", 3)
+                    beastHubNotify("Please select at least one fruit", "", 5)
                     autoShovelFruitEnabled = false
                     return
                 end
@@ -811,14 +822,26 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
 
                 local function kgAllowed(instance, kgMode, kgValue)
                     if not instance then return false end
-                    if not kgMode or not kgValue or kgValue <= 0 then return true end
+                    if not kgMode or not kgValue then return false end  -- reject empty or nil KG
                     local weightObj = instance:FindFirstChild("Weight")
                     if not weightObj then return false end
                     local w = tonumber(weightObj.Value)
                     if not w then return false end
-                    if kgMode[1] == "Above" then return w > kgValue end
+                    if kgMode[1] == "Above" then
+                        return w > kgValue
+                    end
                     return w < kgValue
+                end 
+
+                local function isFavorited(instance)
+                    local fav = instance:GetAttribute("Favorited")
+                    if fav then
+                        return true
+                    else
+                        return false
+                    end
                 end
+
 
                 local function getShovelTarget(container)
                     for _, v in ipairs(container:GetChildren()) do
@@ -847,6 +870,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                                         and hasMatchingVariant(fruit, variants)
                                                         and hasMatchingMutation(fruit, mutations)
                                                         and kgAllowed(fruit, kgMode, kgValue)
+                                                        and not isFavorited(fruit)
                                                     then
                                                         equipItemByExactName("Shovel [Destroy Plants]")
                                                         task.wait()
@@ -865,6 +889,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                                     and hasMatchingVariant(plant, variants)
                                                     and hasMatchingMutation(plant, mutations)
                                                     and kgAllowed(plant, kgMode, kgValue)
+                                                    and not isFavorited(fruit)
                                                 then
                                                     equipItemByExactName("Shovel [Destroy Plants]")
                                                     task.wait()
