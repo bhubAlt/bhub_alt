@@ -1982,12 +1982,12 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
 
     --custom 5 - 10 added later on
     --reusable functions
-    print("reusable functions")
+    -- print("reusable functions")
     local function getPlayerData()
         local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
         return dataService:GetData()
     end
-    print("reusable functions 1")
+    -- print("reusable functions 1")
     local function equippedPets()
         local playerData = getPlayerData()
         if not playerData.PetsData then return nil end
@@ -1999,7 +1999,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         end
         return petIdsList
     end
-    print("reusable functions 2")
+    -- print("reusable functions 2")
     local function getPetNameUsingId(uid)
         local playerData = getPlayerData()
         if playerData.PetsData.PetInventory.Data then
@@ -2010,7 +2010,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             end
         end
     end
-    print("reusable functions 3")
+    -- print("reusable functions 3")
     local function getPetEquipLocation()
         local ok, result = pcall(function()
             local spawnCFrame = getFarmSpawnCFrame()
@@ -2019,7 +2019,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         end)
         return ok and result or nil
     end
-    print("reusable functions 4")
+    -- print("reusable functions 4")
     local function parseCustomFile(index)
         local ids = {}
         local ok, content = pcall(function()
