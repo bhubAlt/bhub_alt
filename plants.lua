@@ -748,8 +748,10 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         Flag = "autoShovelDelay",
         Callback = function() end,
     })
+
     local autoShovelFruitEnabled = false
     local autoShovelFruitThread = nil
+
     Plants:CreateToggle({
         Name = "Auto Shovel Fruit",
         CurrentValue = false,
@@ -759,11 +761,28 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             if autoShovelFruitEnabled then
                 if autoShovelFruitThread then return end
 
-                local fruits = dropdown_selectedFruitForAutoShovel.CurrentOption or {}
-                local variants = dropdown_selectedFruitVariantForAutoShovel.CurrentOption or {}
-                local mutations = dropdown_selectedFruitMutationForAutoShovel.CurrentOption or {}
-                local kgMode = dropdown_selectedFruitKGmodeForAutoShovel.CurrentOption or {"Below"}
-                local kgValue = tonumber(input_selectedFruitKGForAutoShovel.CurrentValue) or 0
+                local fruits
+                local variants
+                local mutations
+                local kgMode
+                local kgValue
+                local waited = 0
+
+                while waited < 5 do
+                    fruits = dropdown_selectedFruitForAutoShovel.CurrentOption
+                    kgValue = tonumber(input_selectedFruitKGForAutoShovel.CurrentValue)
+                    if typeof(fruits) == "table" and typeof(kgValue) == "number" then
+                        break
+                    end
+                    task.wait(0.5)
+                    waited = waited + 0.5
+                end
+
+                fruits = typeof(fruits) == "table" and fruits or {}
+                variants = dropdown_selectedFruitVariantForAutoShovel.CurrentOption or {}
+                mutations = dropdown_selectedFruitMutationForAutoShovel.CurrentOption or {}
+                kgMode = dropdown_selectedFruitKGmodeForAutoShovel.CurrentOption or {"Below"}
+                kgValue = typeof(kgValue) == "number" and kgValue or 0
                 local shovelDelay = tonumber(input_shovelDelay.CurrentValue) or 0.05
 
                 if #fruits == 0 then
@@ -772,30 +791,33 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                     return
                 end
 
-                local function hasMatchingMutation(instance)
-                    if #mutations == 0 then return true end
+                local function hasMatchingMutation(instance, mutations)
+                    if not mutations or #mutations == 0 or mutations[1] == nil then return true end
                     for _, m in ipairs(mutations) do
                         if instance:GetAttribute(m) then return true end
                     end
                     return false
                 end
 
-                local function hasMatchingVariant(instance)
-                    if #variants == 0 then return true end
-                    local vObj = instance:FindFirstChild("Variant")
-                    if not vObj then return false end
+                local function hasMatchingVariant(instance, variants)
+                    if not variants or #variants == 0 or variants[1] == nil then return true end
+                    local variantObj = instance:FindFirstChild("Variant")
+                    if not variantObj then return false end
                     for _, v in ipairs(variants) do
-                        if vObj.Value == v then return true end
+                        if variantObj.Value == v then return true end
                     end
                     return false
                 end
 
-                local function kgAllowed(instance)
-                    if kgValue <= 0 then return true end
-                    local wObj = instance:FindFirstChild("Weight")
-                    local w = wObj and tonumber(wObj.Value)
+                local function kgAllowed(instance, kgMode, kgValue)
+                    if not instance then return false end
+                    if not kgMode or not kgValue or kgValue <= 0 then return true end
+                    local weightObj = instance:FindFirstChild("Weight")
+                    if not weightObj then return false end
+                    local w = tonumber(weightObj.Value)
                     if not w then return false end
-                    return (kgMode[1] == "Above") and (w > kgValue) or (w < kgValue)
+                    if kgMode[1] == "Above" then return w > kgValue end
+                    return w < kgValue
                 end
 
                 local function getShovelTarget(container)
@@ -805,58 +827,63 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                     return nil
                 end
 
-                beastHubNotify("Auto Shovel Fruit running", "", 3)
+                -- beastHubNotify("Auto Shovel Fruit running", "", 3)
 
                 autoShovelFruitThread = task.spawn(function()
                     while autoShovelFruitEnabled do
-                        if not myFarm then task.wait(0.05) continue end
-                        local important = myFarm:FindFirstChild("Important")
-                        local plantsFolder = important and important:FindFirstChild("Plants_Physical")
-                        if not plantsFolder then task.wait(0.05) continue end
-
-                        -- Collect all valid targets first
-                        local targets = {}
-
-                        for _, plant in ipairs(plantsFolder:GetChildren()) do
-                            if not autoShovelFruitEnabled then break end
-                            if not (plant:IsA("Model") or plant:IsA("Folder")) then continue end
-
-                            local fruitsFolder = plant:FindFirstChild("Fruits")
-                            if fruitsFolder then
-                                for _, fruit in ipairs(fruitsFolder:GetChildren()) do
-                                    if table.find(fruits, fruit.Name)
-                                        and hasMatchingVariant(fruit)
-                                        and hasMatchingMutation(fruit)
-                                        and kgAllowed(fruit) then
-                                            local target = getShovelTarget(fruit)
-                                            if target then table.insert(targets, target) end
+                        if myFarm then
+                            local important = myFarm:FindFirstChild("Important")
+                            if important then
+                                local plantsFolder = important:FindFirstChild("Plants_Physical")
+                                if plantsFolder then
+                                    for _, plant in ipairs(plantsFolder:GetChildren()) do
+                                        if not autoShovelFruitEnabled then break end
+                                        if plant:IsA("Model") or plant:IsA("Folder") then
+                                            local fruitsFolder = plant:FindFirstChild("Fruits")
+                                            if fruitsFolder then
+                                                for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+                                                    if not autoShovelFruitEnabled then break end
+                                                    if table.find(fruits, fruit.Name)
+                                                        and hasMatchingVariant(fruit, variants)
+                                                        and hasMatchingMutation(fruit, mutations)
+                                                        and kgAllowed(fruit, kgMode, kgValue)
+                                                    then
+                                                        equipItemByExactName("Shovel [Destroy Plants]")
+                                                        task.wait()
+                                                        local target = getShovelTarget(fruit)
+                                                        if target then
+                                                            game:GetService("ReplicatedStorage")
+                                                                :WaitForChild("GameEvents", 5)
+                                                                :WaitForChild("Remove_Item", 5)
+                                                                :FireServer(target)
+                                                            task.wait(shovelDelay)
+                                                        end
+                                                    end
+                                                end
+                                            else
+                                                if table.find(fruits, plant.Name)
+                                                    and hasMatchingVariant(plant, variants)
+                                                    and hasMatchingMutation(plant, mutations)
+                                                    and kgAllowed(plant, kgMode, kgValue)
+                                                then
+                                                    equipItemByExactName("Shovel [Destroy Plants]")
+                                                    task.wait()
+                                                    local target = getShovelTarget(plant)
+                                                    if target then
+                                                        game:GetService("ReplicatedStorage")
+                                                            :WaitForChild("GameEvents", 5)
+                                                            :WaitForChild("Remove_Item", 5)
+                                                            :FireServer(target)
+                                                        task.wait(shovelDelay)
+                                                    end
+                                                end
+                                            end
+                                        end
                                     end
                                 end
-                            else
-                                if table.find(fruits, plant.Name)
-                                    and hasMatchingVariant(plant)
-                                    and hasMatchingMutation(plant)
-                                    and kgAllowed(plant) then
-                                        local target = getShovelTarget(plant)
-                                        if target then table.insert(targets, target) end
-                                end
                             end
                         end
-
-                        -- Equip shovel only if there are targets
-                        if #targets > 0 then
-                            equipItemByExactName("Shovel [Destroy Plants]")
-                            for _, t in ipairs(targets) do
-                                game:GetService("ReplicatedStorage")
-                                    :WaitForChild("GameEvents", 5)
-                                    :WaitForChild("Remove_Item", 5)
-                                    :FireServer(t)
-                                task.wait(shovelDelay)
-                            end
-                        end
-
-                        -- Minimal wait to prevent thread lock
-                        task.wait(math.max(shovelDelay, 0.01))
+                        task.wait(math.max(shovelDelay, 0.05))
                     end
                     autoShovelFruitThread = nil
                 end)
@@ -866,6 +893,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             end
         end,
     })
+
 
 
 
