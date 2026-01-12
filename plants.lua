@@ -624,6 +624,257 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     })
     Plants:CreateDivider()
 
+    --auto shovel fruits
+    Plants:CreateSection("Auto Shovel Fruit")
+    local selectedFruitsForAutoShovel = {}
+    local dropdown_selectedFruitForAutoShovel = Plants:CreateDropdown({
+        Name = "Select Fruit",
+        Options = allSeedsOnly,
+        CurrentOption = {},
+        MultipleOptions = true,
+        Flag = "selectedFruit_autoShovel",
+        Callback = function(Options)
+            selectedFruitsForAutoShovel = Options
+        end,
+    })
+    local searchDebounce_shovelFruit = nil
+    Plants:CreateInput({
+        Name = "Search fruit",
+        PlaceholderText = "fruit",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            if searchDebounce_shovelFruit then
+                task.cancel(searchDebounce_shovelFruit)
+            end
+            searchDebounce_shovelFruit = task.delay(0.5, function()
+                local results = {}
+                local query = string.lower(Text)
+                if query == "" then
+                    results = allSeedsOnly
+                else
+                    for _, fruitName in ipairs(allSeedsOnly) do
+                        if string.find(string.lower(fruitName), query, 1, true) then
+                            table.insert(results, fruitName)
+                        end
+                    end
+                end
+                dropdown_selectedFruitForAutoShovel:Refresh(results)
+                dropdown_selectedFruitForAutoShovel:Set(selectedFruitsForAutoShovel)
+            end)
+        end,
+    })
+    Plants:CreateButton({
+        Name = "Clear fruit",
+        Callback = function()
+            dropdown_selectedFruitForAutoShovel:Set({})
+        end,
+    })
+    local dropdown_selectedFruitVariantForAutoShovel = Plants:CreateDropdown({
+        Name = "Select Variant",
+        Options = allVariantNames,
+        CurrentOption = {},
+        MultipleOptions = true,
+        Flag = "selectedFruitVariant_autoShovel",
+        Callback = function() end,
+    })
+    local selectedMutationForAutoShovel = {}
+    local dropdown_selectedFruitMutationForAutoShovel = Plants:CreateDropdown({
+        Name = "Select Mutation",
+        Options = mutationNameList,
+        CurrentOption = {},
+        MultipleOptions = true,
+        Flag = "selectedFruitMutation_autoShovel",
+        Callback = function(Options)
+            selectedMutationForAutoShovel = Options
+        end,
+    })
+
+    -- search input for mutations
+    local searchDebounce_shovelMutation = nil
+    Plants:CreateInput({
+        Name = "Search Mutation",
+        PlaceholderText = "mutation",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            if searchDebounce_shovelMutation then
+                task.cancel(searchDebounce_shovelMutation)
+            end
+            searchDebounce_shovelMutation = task.delay(0.5, function()
+                local results = {}
+                local query = string.lower(Text)
+                if query == "" then
+                    results = mutationNameList
+                else
+                    for _, mutationName in ipairs(mutationNameList) do
+                        if string.find(string.lower(mutationName), query, 1, true) then
+                            table.insert(results, mutationName)
+                        end
+                    end
+                end
+                dropdown_selectedFruitMutationForAutoShovel:Refresh(results)
+                dropdown_selectedFruitMutationForAutoShovel:Set(selectedMutationForAutoShovel)
+            end)
+        end,
+    })
+    Plants:CreateButton({
+        Name = "Clear Mutation",
+        Callback = function()
+            dropdown_selectedFruitMutationForAutoShovel:Set({})
+        end,
+    })
+
+
+    local dropdown_selectedFruitKGmodeForAutoShovel = Plants:CreateDropdown({
+        Name = "Below kg or Above kg",
+        Options = {"Below","Above"},
+        CurrentOption = {"Below"},
+        MultipleOptions = false,
+        Flag = "selectedFruitKGMode_autoShovel",
+        Callback = function() end,
+    })
+    local input_selectedFruitKGForAutoShovel = Plants:CreateInput({
+        Name = "KG",
+        CurrentValue = "",
+        PlaceholderText = "number",
+        RemoveTextAfterFocusLost = false,
+        Flag = "selectedFruitKG_autoShovel",
+        Callback = function() end,
+    })
+    local input_shovelDelay = Plants:CreateInput({
+        Name = "Shovel Delay (sec)",
+        CurrentValue = "0",
+        PlaceholderText = "number",
+        RemoveTextAfterFocusLost = false,
+        Flag = "autoShovelDelay",
+        Callback = function() end,
+    })
+    local autoShovelFruitEnabled = false
+    local autoShovelFruitThread = nil
+    Plants:CreateToggle({
+        Name = "Auto Shovel Fruit",
+        CurrentValue = false,
+        Flag = "autoShovelFruit",
+        Callback = function(Value)
+            autoShovelFruitEnabled = Value
+            if autoShovelFruitEnabled then
+                if autoShovelFruitThread then return end
+
+                local fruits = dropdown_selectedFruitForAutoShovel.CurrentOption or {}
+                local variants = dropdown_selectedFruitVariantForAutoShovel.CurrentOption or {}
+                local mutations = dropdown_selectedFruitMutationForAutoShovel.CurrentOption or {}
+                local kgMode = dropdown_selectedFruitKGmodeForAutoShovel.CurrentOption or {"Below"}
+                local kgValue = tonumber(input_selectedFruitKGForAutoShovel.CurrentValue) or 0
+                local shovelDelay = tonumber(input_shovelDelay.CurrentValue) or 0.05
+
+                if #fruits == 0 then
+                    beastHubNotify("Please select at least one fruit", "", 3)
+                    autoShovelFruitEnabled = false
+                    return
+                end
+
+                local function hasMatchingMutation(instance)
+                    if #mutations == 0 then return true end
+                    for _, m in ipairs(mutations) do
+                        if instance:GetAttribute(m) then return true end
+                    end
+                    return false
+                end
+
+                local function hasMatchingVariant(instance)
+                    if #variants == 0 then return true end
+                    local vObj = instance:FindFirstChild("Variant")
+                    if not vObj then return false end
+                    for _, v in ipairs(variants) do
+                        if vObj.Value == v then return true end
+                    end
+                    return false
+                end
+
+                local function kgAllowed(instance)
+                    if kgValue <= 0 then return true end
+                    local wObj = instance:FindFirstChild("Weight")
+                    local w = wObj and tonumber(wObj.Value)
+                    if not w then return false end
+                    return (kgMode[1] == "Above") and (w > kgValue) or (w < kgValue)
+                end
+
+                local function getShovelTarget(container)
+                    for _, v in ipairs(container:GetChildren()) do
+                        if tonumber(v.Name) then return v end
+                    end
+                    return nil
+                end
+
+                beastHubNotify("Auto Shovel Fruit running", "", 3)
+
+                autoShovelFruitThread = task.spawn(function()
+                    while autoShovelFruitEnabled do
+                        if not myFarm then task.wait(0.05) continue end
+                        local important = myFarm:FindFirstChild("Important")
+                        local plantsFolder = important and important:FindFirstChild("Plants_Physical")
+                        if not plantsFolder then task.wait(0.05) continue end
+
+                        -- Collect all valid targets first
+                        local targets = {}
+
+                        for _, plant in ipairs(plantsFolder:GetChildren()) do
+                            if not autoShovelFruitEnabled then break end
+                            if not (plant:IsA("Model") or plant:IsA("Folder")) then continue end
+
+                            local fruitsFolder = plant:FindFirstChild("Fruits")
+                            if fruitsFolder then
+                                for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+                                    if table.find(fruits, fruit.Name)
+                                        and hasMatchingVariant(fruit)
+                                        and hasMatchingMutation(fruit)
+                                        and kgAllowed(fruit) then
+                                            local target = getShovelTarget(fruit)
+                                            if target then table.insert(targets, target) end
+                                    end
+                                end
+                            else
+                                if table.find(fruits, plant.Name)
+                                    and hasMatchingVariant(plant)
+                                    and hasMatchingMutation(plant)
+                                    and kgAllowed(plant) then
+                                        local target = getShovelTarget(plant)
+                                        if target then table.insert(targets, target) end
+                                end
+                            end
+                        end
+
+                        -- Equip shovel only if there are targets
+                        if #targets > 0 then
+                            equipItemByExactName("Shovel [Destroy Plants]")
+                            for _, t in ipairs(targets) do
+                                game:GetService("ReplicatedStorage")
+                                    :WaitForChild("GameEvents", 5)
+                                    :WaitForChild("Remove_Item", 5)
+                                    :FireServer(t)
+                                task.wait(shovelDelay)
+                            end
+                        end
+
+                        -- Minimal wait to prevent thread lock
+                        task.wait(math.max(shovelDelay, 0.01))
+                    end
+                    autoShovelFruitThread = nil
+                end)
+            else
+                autoShovelFruitEnabled = false
+                autoShovelFruitThread = nil
+            end
+        end,
+    })
+
+
+
+
+
+    Plants:CreateDivider()
+    --end auto shovel fruits
+
+
     local autoShovelSprinklerEnabled = false
     local autoShovelSprinklerThread = nil
     Plants:CreateToggle({
