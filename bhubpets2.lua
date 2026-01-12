@@ -3,7 +3,8 @@ local M = {}
 M.autoEleWebhook = false
 M.autoNMwebhook = false
 M.webhookURL = ""
-function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equipItemByName, equipItemByNameV2, getMyFarm, getFarmSpawnCFrame, getAllPetNames, sendDiscordWebhook, petListNamesOnlyAndSorted)
+function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equipItemByName, equipItemByNameV2, getMyFarm, getFarmSpawnCFrame, getAllPetNames, sendDiscordWebhook, petListNamesOnlyAndSorted, mainModule)
+
     local Pets = Window:CreateTab("Pets", "cat")
     
     --auto fav unfav pet
@@ -348,7 +349,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     local phoenixLoady
     Pets:CreateDropdown({
         Name = "Phoenix Loadout",
-        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4"},
+        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4", "custom_5", "custom_6", "custom_7", "custom_8", "custom_9", "custom_10"},
         CurrentOption = {},
         MultipleOptions = false,
         Flag = "phoenixLoadoutNum", 
@@ -360,7 +361,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     local levelingLoady
     Pets:CreateDropdown({
         Name = "Leveling Loadout (Free 1 pet space)",
-        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4"},
+        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4", "custom_5", "custom_6", "custom_7", "custom_8", "custom_9", "custom_10"},
         CurrentOption = {},
         MultipleOptions = false,
         Flag = "levelingLoadoutNum", 
@@ -372,7 +373,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     local golemLoady
     Pets:CreateDropdown({
         Name = "Golem Loadout",
-        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4"},
+        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4", "custom_5", "custom_6", "custom_7", "custom_8", "custom_9", "custom_10"},
         CurrentOption = {},
         MultipleOptions = false,
         Flag = "golemLoadoutNum", 
@@ -678,18 +679,25 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                         if mutationMachineData.PetReady == true then
                             beastHubNotify("A Pet is ready to claim!", "Switching to phoenix loadout..", 3)
                             --claim with phoenix
+                            mainModule.isSafeToPickPlace = false
+                            task.wait(0.5)
                             myFunctions.switchToLoadout(phoenixLoady, getFarmSpawnCFrame, beastHubNotify)
                             task.wait(6)
                             local args = {
                                 [1] = "ClaimMutatedPet";
                             }
                             game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetMutationMachineService_RE", 9e9):FireServer(unpack(args))
+                            task.wait()
+                            mainModule.isSafeToPickPlace = true
                             --Auto Start machine toggle VULN is advised
                         else
                             beastHubNotify("A Pet is already in machine", "Switching to golems loadout..", 3)
                             --switch to golems and wait till pet is ready
+                            mainModule.isSafeToPickPlace = false
+                            task.wait(0.5)
                             myFunctions.switchToLoadout(golemLoady, getFarmSpawnCFrame, beastHubNotify)
                             task.wait(6)
+                            mainModule.isSafeToPickPlace = true
                             --monitoring code here
                             local machineCurrentStatus = getMutationMachineData().PetReady
                             while autoPetMutationEnabled and machineCurrentStatus == false do
@@ -700,12 +708,16 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                             --claim once while loop is broken, it means pet is ready
                             if autoPetMutationEnabled and machineCurrentStatus == true then
                                 beastHubNotify("A Pet is ready to claim!", "Switching to phoenix loadout..", 3)
+                                mainModule.isSafeToPickPlace = false
+                                task.wait(0.5)
                                 myFunctions.switchToLoadout(phoenixLoady, getFarmSpawnCFrame, beastHubNotify)
                                 task.wait(6)
                                 local args = {
                                     [1] = "ClaimMutatedPet";
                                 }
                                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetMutationMachineService_RE", 9e9):FireServer(unpack(args))
+                                task.wait()
+                                mainModule.isSafeToPickPlace = true
                             end
                         end
                     end
@@ -761,6 +773,8 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                 end
 
                                 --process current pet for leveling here
+                                mainModule.isSafeToPickPlace = false
+                                task.wait(0.5)
                                 myFunctions.switchToLoadout(levelingLoady, getFarmSpawnCFrame, beastHubNotify)
                                 task.wait(6)
 
@@ -775,6 +789,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                 }
                                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
                                 task.wait(1)
+                                mainModule.isSafeToPickPlace = true
 
                                 while autoPetMutationEnabled and curLevel < 50 do
                                     local haveLollipop = false
@@ -806,7 +821,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                         --monitor level every 10 sec
                                         while autoPetMutationEnabled and curLevel < 50 do 
                                             beastHubNotify("Current Pet age: "..curLevel, "waiting to hit age 50..",3)
-                                            task.wait(10)
+                                            task.wait(5)
                                             curLevel = getCurrentPetLevelByUid(uid)
                                         end
                                         --unequip once ready
@@ -821,7 +836,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                         --monitor level every 10 sec
                                         while autoPetMutationEnabled and curLevel < 50 do 
                                             beastHubNotify("Current Pet age: "..curLevel, "waiting to hit age 50..",3)
-                                            task.wait(10)
+                                            task.wait(5)
                                             curLevel = getCurrentPetLevelByUid(uid)
                                         end
 
@@ -841,40 +856,53 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                     if mutationMachineData.PetReady == true then
                                         beastHubNotify("A Pet is ready to claim!", "Switching to phoenix loadout..", 3)
                                         --claim with phoenix
+                                        mainModule.isSafeToPickPlace = false
+                                        task.wait(0.5)
                                         myFunctions.switchToLoadout(phoenixLoady, getFarmSpawnCFrame, beastHubNotify)
                                         task.wait(6)
                                         local args = {
                                             [1] = "ClaimMutatedPet";
                                         }
                                         game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetMutationMachineService_RE", 9e9):FireServer(unpack(args))
+                                        task.wait()
+                                        mainModule.isSafeToPickPlace = true
                                         --Auto Start machine toggle VULN is advised
                                     else
                                         beastHubNotify("A Pet is already in machine", "Switching to golems loadout..", 3)
                                         --switch to golems and wait till pet is ready
+                                        mainModule.isSafeToPickPlace = false
+                                        task.wait(0.5)
                                         myFunctions.switchToLoadout(golemLoady, getFarmSpawnCFrame, beastHubNotify)
                                         task.wait(6)
+                                        mainModule.isSafeToPickPlace = true
                                         --monitoring code here
                                         local machineCurrentStatus = getMutationMachineData().PetReady
                                         while autoPetMutationEnabled and machineCurrentStatus == false do
                                             beastHubNotify("Waiting for Machine to be ready", "", 3)
-                                            task.wait(15)
+                                            task.wait(5)
                                             machineCurrentStatus = getMutationMachineData().PetReady
                                         end 
                                         --claim once while loop is broken, it means pet is ready
                                         if autoPetMutationEnabled and machineCurrentStatus == true then
                                             beastHubNotify("A Pet is ready to claim!", "Switching to phoenix loadout..", 3)
+                                            mainModule.isSafeToPickPlace = false
+                                            task.wait(0.5)
                                             myFunctions.switchToLoadout(phoenixLoady, getFarmSpawnCFrame, beastHubNotify)
                                             task.wait(6)
                                             local args = {
                                                 [1] = "ClaimMutatedPet";
                                             }
                                             game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetMutationMachineService_RE", 9e9):FireServer(unpack(args))
+                                            task.wait()
+                                            mainModule.isSafeToPickPlace = true
                                         end
                                     end
                                 end
                                 --process current pet here for machine
                                 if autoPetMutationEnabled and curLevel > 49 then
                                     beastHubNotify("Current Pet is good to submit", "", 3)
+                                    mainModule.isSafeToPickPlace = false
+                                    task.wait(0.5)
                                     myFunctions.switchToLoadout(golemLoady, getFarmSpawnCFrame, beastHubNotify)
                                     task.wait(6)
                                     --hold pet then submit      
@@ -886,24 +914,29 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                     game:GetService("ReplicatedStorage").GameEvents.PetMutationMachineService_RE:FireServer(unpack(args))
                                     beastHubNotify("Current Pet submitted", "", 3)
                                     task.wait(1)
-                                    myFunctions.switchToLoadout(golemLoady, getFarmSpawnCFrame, beastHubNotify)
-                                    task.wait(6)
+                                    mainModule.isSafeToPickPlace = true
+                                    -- myFunctions.switchToLoadout(golemLoady, getFarmSpawnCFrame, beastHubNotify)
+                                    -- task.wait(6)
                                     --monitoring code here
                                     local machineCurrentStatus = getMutationMachineData().PetReady
                                     while autoPetMutationEnabled and machineCurrentStatus == false do
                                         beastHubNotify("Waiting for Machine to be ready", "", 3)
-                                        task.wait(15)
+                                        task.wait(5)
                                         machineCurrentStatus = getMutationMachineData().PetReady
                                     end 
                                     --claim once while loop is broken, it means pet is ready
                                     if autoPetMutationEnabled and machineCurrentStatus == true then
                                         beastHubNotify("A Pet is ready to claim!", "Switching to phoenix loadout..", 3)
+                                        mainModule.isSafeToPickPlace = false
+                                        task.wait(0.5)
                                         myFunctions.switchToLoadout(phoenixLoady, getFarmSpawnCFrame, beastHubNotify)
                                         task.wait(6)
                                         local args = {
                                             [1] = "ClaimMutatedPet";
                                         }
                                         game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetMutationMachineService_RE", 9e9):FireServer(unpack(args))
+                                        task.wait()
+                                        mainModule.isSafeToPickPlace = true
                                         message = "Mutation Cycle done"
                                     end
                                 end
@@ -1117,20 +1150,44 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                     end
                 end
 
+                --OLD, all fav and unfav for leveling
+                -- local function refreshPets()
+                --     local pets = getPetInventory()
+                --     local myPets = {}
+                --     if pets then
+                --         for uid, pet in pairs(pets) do
+                --             table.insert(myPets, {
+                --                 Uid = uid,
+                --                 PetType = pet.PetType,
+                --                 Uuid = pet.UUID,
+                --                 PetData = pet.PetData
+                --             })
+                --         end
+                --     end
+                --     return myPets
+                -- end
+
+                --NEW, use unfavs only
                 local function refreshPets()
                     local pets = getPetInventory()
-                    local myPets = {}
+                    local unfavoritePets = {}
                     if pets then
                         for uid, pet in pairs(pets) do
-                            table.insert(myPets, {
+                            local entry = {
                                 Uid = uid,
                                 PetType = pet.PetType,
-                                Uuid = pet.UUID,
+                                Uuid = pet.UUID, 
                                 PetData = pet.PetData
-                            })
+                            }
+                            if pet.PetData.IsFavorite then
+                                --for favorites
+                            else
+                                table.insert(unfavoritePets, entry)
+                            end
                         end
                     end
-                    return myPets
+                    --
+                    return unfavoritePets
                 end
 
                 local function equipPetByUuid(uuid)
@@ -1187,13 +1244,15 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                         if curPet == selectedPet and curLevel < targetLevel then
                             petFound = true
                             beastHubNotify("Found: " .. curPet, "with level: " .. curLevel, "3")
-
+                            mainModule.isSafeToPickPlace = false
+                            task.wait(0.5)
                             myFunctions.switchToLoadout(levelingLoady, getFarmSpawnCFrame, beastHubNotify)
                             task.wait(6)
 
                             local petEquipLocation = getPetEquipLocation()
                             equipPetByUuid(uid)
                             task.wait()
+                            mainModule.isSafeToPickPlace = true
 
                             local args = { "EquipPet", uid, petEquipLocation }
                             game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9)
@@ -1304,7 +1363,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     local horsemanLoady
     Pets:CreateDropdown({
         Name = "Horseman Loadout (Free 1 pet space)",
-        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4"},
+        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4", "custom_5", "custom_6", "custom_7", "custom_8", "custom_9", "custom_10"},
         CurrentOption = {},
         MultipleOptions = false,
         Flag = "horsemanLoadoutNum", 
@@ -1565,6 +1624,8 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                 end
                                 petFound = true
                                 --switch to leveling
+                                mainModule.isSafeToPickPlace = false
+                                task.wait(0.5)
                                 myFunctions.switchToLoadout(levelingLoady, getFarmSpawnCFrame, beastHubNotify)
                                 task.wait(6)
                                 equipPetByUuid(uid)
@@ -1578,11 +1639,39 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                 }
                                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
                                 task.wait(1)
+                                mainModule.isSafeToPickPlace = true
+
+                                --equip cleanse and fire
+                                if equipItemByName("Cleansing Pet Shard") == false then 
+                                    beastHubNotify("No more cleansing shards!", "", 4)
+                                    return    
+                                else
+                                    beastHubNotify("Cleansing now..", "", 3) 
+                                end 
+                                task.wait(.5)
+                                --cleanse event
+                                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                                local PetShardService_RE = ReplicatedStorage.GameEvents.PetShardService_RE -- RemoteEvent
+                                -- Find pet model anywhere inside PetsPhysical
+                                local petPhysical = workspace:WaitForChild("PetsPhysical")
+                                local targetPet = petPhysical:FindFirstChild(tostring(uid), true) -- 'true' enables recursive search
+                                if targetPet then
+                                    PetShardService_RE:FireServer("ApplyShard", targetPet)
+                                    -- print(" Fired ApplyShard for pet UID:", uid, "found at", targetPet:GetFullName())
+                                else
+                                    beastHubNotify("Pet slot full!", "Please free 1 slot in HH loadout", 3)
+                                    autoNMenabled = false
+                                    return
+                                    -- warn(" Could not find Pet model with UID:", uid)
+                                end
+                                task.wait(5)
+                                --unequip shard
+                                -- game.Players.LocalPlayer.Character.Humanoid:UnequipTools()
 
                                 --monitor level
                                 while autoNMenabled and curLevel < targetLevel do
                                     beastHubNotify("Current Pet age: "..curLevel, "waiting to hit age "..targetLevel.."..",3)
-                                    task.wait(10)
+                                    task.wait(5)
                                     curLevel = getCurrentPetLevelByUid(uid)
                                 end
                                 
@@ -1596,8 +1685,10 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
 
                                 --swtich to NM loady
                                 if autoNMenabled then 
+                                    mainModule.isSafeToPickPlace = false
+                                    task.wait(0.5)
                                     myFunctions.switchToLoadout(horsemanLoady, getFarmSpawnCFrame, beastHubNotify)
-                                    task.wait(10)
+                                    task.wait(5)
                                     --equip to garden
                                     local args = {
                                         [1] = "EquipPet",
@@ -1606,35 +1697,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                     }
                                     game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
                                     task.wait(2)
-                                    --equip cleanse and fire
-                                    --
-                                    if equipItemByName("Cleansing Pet Shard") == false then 
-                                        beastHubNotify("No more cleansing shards!", "", 4)
-                                        return    
-                                    else
-                                        beastHubNotify("Cleansing now..", "", 3) 
-                                    end 
-                                    task.wait(.5)
-                                    --cleanse event
-                                    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                                    local PetShardService_RE = ReplicatedStorage.GameEvents.PetShardService_RE -- RemoteEvent
-                                    -- Find pet model anywhere inside PetsPhysical
-                                    local petPhysical = workspace:WaitForChild("PetsPhysical")
-                                    local targetPet = petPhysical:FindFirstChild(tostring(uid), true) -- 'true' enables recursive search
-                                    if targetPet then
-                                        PetShardService_RE:FireServer("ApplyShard", targetPet)
-                                        -- print(" Fired ApplyShard for pet UID:", uid, "found at", targetPet:GetFullName())
-                                    else
-                                        beastHubNotify("Pet slot full!", "Please free 1 slot in HH loadout", 3)
-                                        autoNMenabled = false
-                                        return
-                                        -- warn(" Could not find Pet model with UID:", uid)
-                                    end
-
-                                    task.wait(5)
-                                    
-                                    --unequip shard
-                                    game.Players.LocalPlayer.Character.Humanoid:UnequipTools()
+                                    mainModule.isSafeToPickPlace = true
 
                                     --monitor if curLevel dropped
                                     while autoNMenabled and curLevel >= targetLevel do
@@ -1829,7 +1892,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     local elephantLoady
     Pets:CreateDropdown({
         Name = "Elephant Loadout",
-        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4"},
+        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4", "custom_5", "custom_6", "custom_7", "custom_8", "custom_9", "custom_10"},
         CurrentOption = {},
         MultipleOptions = false,
         Flag = "elephantLoadoutNum", 
@@ -2042,6 +2105,8 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                             petFound = true
 
                             --switch to leveling
+                            mainModule.isSafeToPickPlace = false
+                            task.wait(0.5)
                             myFunctions.switchToLoadout(levelingLoady, getFarmSpawnCFrame, beastHubNotify)
                             task.wait(6)
                             equipPetByUuid(uid)
@@ -2055,11 +2120,12 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                             }
                             game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
                             task.wait(1)
+                            mainModule.isSafeToPickPlace = true
                             
                             --monitor level
                             while autoEleEnabled and curLevel < targetLevel do
                                 beastHubNotify("Current Pet age: "..curLevel, "waiting to hit age "..targetLevel.."..",3)
-                                task.wait(10)
+                                task.wait(5)
                                 curLevel = getCurrentPetLevelByUid(uid)
                             end
 
@@ -2073,6 +2139,8 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
 
                             --swtich to Ele loady
                             if autoEleEnabled then 
+                                mainModule.isSafeToPickPlace = false
+                                task.wait(0.5)
                                 myFunctions.switchToLoadout(elephantLoady, getFarmSpawnCFrame, beastHubNotify)
                                 task.wait(6)
                                 --equip to garden
@@ -2083,6 +2151,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                 }
                                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
                                 task.wait(2)
+                                mainModule.isSafeToPickPlace = true
 
                                 --monitor if curLevel dropped
                                 while autoEleEnabled and curLevel >= targetLevel do
@@ -2228,8 +2297,11 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                         beastHubNotify("Auto Leveling triggered", "", 3)
                                         Toggle_autoLevel:Set(true)
                                     end
+                                    mainModule.isSafeToPickPlace = false
+                                    task.wait(0.5)
                                     myFunctions.switchToLoadout(levelingLoady, getFarmSpawnCFrame, beastHubNotify)
                                     task.wait(5)
+                                    mainModule.isSafeToPickPlace = true
                                     return
                                 else
                                     beastHubNotify(msg, "", 5)
