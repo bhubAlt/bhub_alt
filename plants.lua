@@ -376,7 +376,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 if #variants == 0 then variants = {nil} end
                 if #mutations == 0 then mutations = {nil} end
 
-                beastHubNotify("Auto Collect Fruit running", "", 3)
+                -- beastHubNotify("Auto Collect Fruit running", "", 3)
                 -- local myFarm = getMyFarm()
                 local function hasMatchingMutation(fruitInstance, mutations)
                     if not mutations or #mutations == 0 or (mutations[1] == nil) then
