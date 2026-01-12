@@ -1,13 +1,12 @@
 local M = {}
 
-M.isSafeToPickPlace = true
 M.mimicsListFor9Pets = ""
 M.spiderFor9Pets = ""
 M.eagleFor9Pets = ""
 M.delayToStayInSpider = 30
 M.delayToStayInEagle = 30
 
-function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equipItemByName, equipItemByNameV2, getMyFarm, getFarmSpawnCFrame, getAllPetNames, sendDiscordWebhook, allSeedsData, allSeedsOnly, equipFruitById)
+function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equipItemByName, equipItemByNameV2, getMyFarm, getFarmSpawnCFrame, getAllPetNames, sendDiscordWebhook, allSeedsData, allSeedsOnly, equipFruitById, mainModule)
     local Automation = Window:CreateTab("Automation", "bot")
     
     
@@ -229,7 +228,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 local activeCancelTasks = {}
                 cancelAnimationThread = task.spawn(function()
                     while cancelAnimationEnabled do
-                        if M.isSafeToPickPlace then
+                        if mainModule.isSafeToPickPlace then
                             pickupList = dropdown_selectPetsForCancelAnim.CurrentOption or {}
                             for _, pickupEntry in ipairs(pickupList) do
                                 if not cancelAnimationEnabled then break end
@@ -240,16 +239,16 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                         activeCancelTasks[petId] = true
                                         task.spawn(function()
                                             task.wait(animDelay)
-                                            if cancelAnimationEnabled and M.isSafeToPickPlace and isPetInWorkspace(petId) then
+                                            if cancelAnimationEnabled and mainModule.isSafeToPickPlace and isPetInWorkspace(petId) then
                                                 game:GetService("ReplicatedStorage").GameEvents.PetsService:FireServer("UnequipPet", petId)
                                                 -- task.wait(0.05)
                                                 task.wait(0.001)
                                                 equipPetByUuid(petId)
                                                 -- task.wait(0.05)
                                                 task.wait(0.001)
+                                            end
+                                            if mainModule.isSafeToPickPlace then
                                                 game:GetService("ReplicatedStorage").GameEvents.PetsService:FireServer("EquipPet", petId, location)
-                                            else
-                                                -- print("not in workspace: "..petId)
                                             end
                                             activeCancelTasks[petId] = nil
                                         end)
@@ -594,7 +593,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 autoPickupThread = task.spawn(function()
                     local justCasted = false
                     while autoPickupEnabled do
-                        if M.isSafeToPickPlace then
+                        if mainModule.isSafeToPickPlace then
                             for _, monitorEntry in ipairs(monitorList) do
                                 if not autoPickupEnabled or justCasted then
                                     task.wait(delayForNextPickup)
@@ -605,14 +604,14 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                 local curMonitorPetId = (monitorEntry:match("^[^|]+|%s*(.+)$") or ""):match("^%s*(.-)%s*$")
                                 local timeLeft = petCooldowns[curMonitorPetId] or 0
                                 -- beastHubNotify("timeLeft: "..timeLeft, "",1)
-                                if (timeLeft == whenPetCdIs or timeLeft == (whenPetCdIs-1) or timeLeft == 0) and not justCasted and M.isSafeToPickPlace then
+                                if (timeLeft == whenPetCdIs or timeLeft == (whenPetCdIs-1) or timeLeft == 0) and not justCasted and mainModule.isSafeToPickPlace then
                                     -- beastHubNotify("timeLeft TRUE: "..timeLeft, "",1)
                                     for _, pickupEntry in ipairs(pickupList) do
                                         if not autoPickupEnabled then break end
                                         local curPickupPetId = (pickupEntry:match("^[^|]+|%s*(.+)$") or ""):match("^%s*(.-)%s*$")
                                         local isCurPicked = false
 
-                                        if M.isSafeToPickPlace and isEquipped(curPickupPetId) then
+                                        if mainModule.isSafeToPickPlace and isEquipped(curPickupPetId) then
                                             -- Unequip pet
                                             -- beastHubNotify("Picking up!","",1)
                                             isCurPicked = true
@@ -628,7 +627,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                         
                                         -- task.wait(.5)
                                         -- task.wait(delayForNextPickup+0.5)
-                                        -- if M.isSafeToPickPlace and isCurPicked then
+                                        -- if mainModule.isSafeToPickPlace and isCurPicked then
                                         --     --for the monitoring pet
                                         --     game:GetService("ReplicatedStorage").GameEvents.PetsService:FireServer("UnequipPet", curMonitorPetId)
                                         --     task.wait()
@@ -1883,7 +1882,6 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             end
         end
     })
-
     Automation:CreateButton({
         Name = "Load Custom 4",
         Callback = function()
@@ -1982,6 +1980,335 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     })
     Automation:CreateDivider()
 
+    --custom 5 - 10 added later on
+    --reusable functions
+    print("reusable functions")
+    local function getPlayerData()
+        local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+        return dataService:GetData()
+    end
+    print("reusable functions 1")
+    local function equippedPets()
+        local playerData = getPlayerData()
+        if not playerData.PetsData then return nil end
+        local tempStorage = playerData.PetsData.EquippedPets
+        if not tempStorage or type(tempStorage) ~= "table" then return nil end
+        local petIdsList = {}
+        for _, id in ipairs(tempStorage) do
+            table.insert(petIdsList, id)
+        end
+        return petIdsList
+    end
+    print("reusable functions 2")
+    local function getPetNameUsingId(uid)
+        local playerData = getPlayerData()
+        if playerData.PetsData.PetInventory.Data then
+            for id, petData in pairs(playerData.PetsData.PetInventory.Data) do
+                if id == uid then
+                    return petData.PetType.." > "..petData.PetData.Name.." > "..string.format("%.2f", petData.PetData.BaseWeight * 1.1).."kg"
+                end
+            end
+        end
+    end
+    print("reusable functions 3")
+    local function getPetEquipLocation()
+        local ok, result = pcall(function()
+            local spawnCFrame = getFarmSpawnCFrame()
+            if typeof(spawnCFrame) ~= "CFrame" then return nil end
+            return spawnCFrame * CFrame.new(0, 0, -5)
+        end)
+        return ok and result or nil
+    end
+    print("reusable functions 4")
+    local function parseCustomFile(index)
+        local ids = {}
+        local ok, content = pcall(function()
+            return readfile("BeastHub/custom_"..index..".txt")
+        end)
+        if not ok then return ids end
+        for line in string.gmatch(content, "([^\n]+)") do
+            local id = string.match(line, "({[%w%-]+})")
+            if id then table.insert(ids, id) end
+        end
+        return ids
+    end
+
+    --custom 5 - 10 UI
+    -- Custom 5
+    M.customLoadout5 = Automation:CreateParagraph({Title = "Custom 5:", Content = "None"})
+    Automation:CreateButton({
+        Name = "Set current Team as Custom 5",
+        Callback = function()
+            local saveFolder = "BeastHub"
+            local saveFile = saveFolder.."/custom_5.txt"
+            if not isfolder(saveFolder) then makefolder(saveFolder) end
+            local equipped = equippedPets()
+            local petsString = ""
+            if equipped then
+                for _, id in ipairs(equipped) do
+                    petsString = petsString..getPetNameUsingId(id)..">"..id.."|\n"
+                end
+            end
+            if equipped and #equipped > 0 then
+                M.customLoadout5:Set({Title = "Custom 5:", Content = petsString})
+                writefile(saveFile, petsString)
+                beastHubNotify("Saved Custom 5!", "", 3)
+            else
+                beastHubNotify("No pets equipped", "", 3)
+            end
+        end
+    })
+    Automation:CreateButton({
+        Name = "Load Custom 5",
+        Callback = function()
+            local equipped = equippedPets()
+            if equipped and #equipped > 0 then
+                for _, id in ipairs(equipped) do
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", id)
+                    task.wait()
+                end
+            end
+            local petIds = parseCustomFile(5)
+            if #petIds == 0 then beastHubNotify("Custom 5 is empty", "", 3) return end
+            local location = getPetEquipLocation()
+            for _, id in ipairs(petIds) do
+                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", id, location)
+                task.wait()
+            end
+            beastHubNotify("Loaded Custom 5", "", 3)
+        end
+    })
+    Automation:CreateDivider()
+
+    -- Custom 6
+    M.customLoadout6 = Automation:CreateParagraph({Title = "Custom 6:", Content = "None"})
+    Automation:CreateButton({
+        Name = "Set current Team as Custom 6",
+        Callback = function()
+            local saveFolder = "BeastHub"
+            local saveFile = saveFolder.."/custom_6.txt"
+            if not isfolder(saveFolder) then makefolder(saveFolder) end
+            local equipped = equippedPets()
+            local petsString = ""
+            if equipped then
+                for _, id in ipairs(equipped) do
+                    petsString = petsString..getPetNameUsingId(id)..">"..id.."|\n"
+                end
+            end
+            if equipped and #equipped > 0 then
+                M.customLoadout6:Set({Title = "Custom 6:", Content = petsString})
+                writefile(saveFile, petsString)
+                beastHubNotify("Saved Custom 6!", "", 3)
+            else
+                beastHubNotify("No pets equipped", "", 3)
+            end
+        end
+    })
+    Automation:CreateButton({
+        Name = "Load Custom 6",
+        Callback = function()
+            local equipped = equippedPets()
+            if equipped and #equipped > 0 then
+                for _, id in ipairs(equipped) do
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", id)
+                    task.wait()
+                end
+            end
+            local petIds = parseCustomFile(6)
+            if #petIds == 0 then beastHubNotify("Custom 6 is empty", "", 3) return end
+            local location = getPetEquipLocation()
+            for _, id in ipairs(petIds) do
+                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", id, location)
+                task.wait()
+            end
+            beastHubNotify("Loaded Custom 6", "", 3)
+        end
+    })
+    Automation:CreateDivider()
+
+    -- Custom 7
+    M.customLoadout7 = Automation:CreateParagraph({Title = "Custom 7:", Content = "None"})
+    Automation:CreateButton({
+        Name = "Set current Team as Custom 7",
+        Callback = function()
+            local saveFolder = "BeastHub"
+            local saveFile = saveFolder.."/custom_7.txt"
+            if not isfolder(saveFolder) then makefolder(saveFolder) end
+            local equipped = equippedPets()
+            local petsString = ""
+            if equipped then
+                for _, id in ipairs(equipped) do
+                    petsString = petsString..getPetNameUsingId(id)..">"..id.."|\n"
+                end
+            end
+            if equipped and #equipped > 0 then
+                M.customLoadout7:Set({Title = "Custom 7:", Content = petsString})
+                writefile(saveFile, petsString)
+                beastHubNotify("Saved Custom 7!", "", 3)
+            else
+                beastHubNotify("No pets equipped", "", 3)
+            end
+        end
+    })
+    Automation:CreateButton({
+        Name = "Load Custom 7",
+        Callback = function()
+            local equipped = equippedPets()
+            if equipped and #equipped > 0 then
+                for _, id in ipairs(equipped) do
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", id)
+                    task.wait()
+                end
+            end
+            local petIds = parseCustomFile(7)
+            if #petIds == 0 then beastHubNotify("Custom 7 is empty", "", 3) return end
+            local location = getPetEquipLocation()
+            for _, id in ipairs(petIds) do
+                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", id, location)
+                task.wait()
+            end
+            beastHubNotify("Loaded Custom 7", "", 3)
+        end
+    })
+    Automation:CreateDivider()
+
+    -- Custom 8
+    M.customLoadout8 = Automation:CreateParagraph({Title = "Custom 8:", Content = "None"})
+    Automation:CreateButton({
+        Name = "Set current Team as Custom 8",
+        Callback = function()
+            local saveFolder = "BeastHub"
+            local saveFile = saveFolder.."/custom_8.txt"
+            if not isfolder(saveFolder) then makefolder(saveFolder) end
+            local equipped = equippedPets()
+            local petsString = ""
+            if equipped then
+                for _, id in ipairs(equipped) do
+                    petsString = petsString..getPetNameUsingId(id)..">"..id.."|\n"
+                end
+            end
+            if equipped and #equipped > 0 then
+                M.customLoadout8:Set({Title = "Custom 8:", Content = petsString})
+                writefile(saveFile, petsString)
+                beastHubNotify("Saved Custom 8!", "", 3)
+            else
+                beastHubNotify("No pets equipped", "", 3)
+            end
+        end
+    })
+    Automation:CreateButton({
+        Name = "Load Custom 8",
+        Callback = function()
+            local equipped = equippedPets()
+            if equipped and #equipped > 0 then
+                for _, id in ipairs(equipped) do
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", id)
+                    task.wait()
+                end
+            end
+            local petIds = parseCustomFile(8)
+            if #petIds == 0 then beastHubNotify("Custom 8 is empty", "", 3) return end
+            local location = getPetEquipLocation()
+            for _, id in ipairs(petIds) do
+                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", id, location)
+                task.wait()
+            end
+            beastHubNotify("Loaded Custom 8", "", 3)
+        end
+    })
+    Automation:CreateDivider()
+
+    -- Custom 9
+    M.customLoadout9 = Automation:CreateParagraph({Title = "Custom 9:", Content = "None"})
+    Automation:CreateButton({
+        Name = "Set current Team as Custom 9",
+        Callback = function()
+            local saveFolder = "BeastHub"
+            local saveFile = saveFolder.."/custom_9.txt"
+            if not isfolder(saveFolder) then makefolder(saveFolder) end
+            local equipped = equippedPets()
+            local petsString = ""
+            if equipped then
+                for _, id in ipairs(equipped) do
+                    petsString = petsString..getPetNameUsingId(id)..">"..id.."|\n"
+                end
+            end
+            if equipped and #equipped > 0 then
+                M.customLoadout9:Set({Title = "Custom 9:", Content = petsString})
+                writefile(saveFile, petsString)
+                beastHubNotify("Saved Custom 9!", "", 3)
+            else
+                beastHubNotify("No pets equipped", "", 3)
+            end
+        end
+    })
+    Automation:CreateButton({
+        Name = "Load Custom 9",
+        Callback = function()
+            local equipped = equippedPets()
+            if equipped and #equipped > 0 then
+                for _, id in ipairs(equipped) do
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", id)
+                    task.wait()
+                end
+            end
+            local petIds = parseCustomFile(9)
+            if #petIds == 0 then beastHubNotify("Custom 9 is empty", "", 3) return end
+            local location = getPetEquipLocation()
+            for _, id in ipairs(petIds) do
+                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", id, location)
+                task.wait()
+            end
+            beastHubNotify("Loaded Custom 9", "", 3)
+        end
+    })
+    Automation:CreateDivider()
+
+    -- Custom 10
+    M.customLoadout10 = Automation:CreateParagraph({Title = "Custom 10:", Content = "None"})
+    Automation:CreateButton({
+        Name = "Set current Team as Custom 10",
+        Callback = function()
+            local saveFolder = "BeastHub"
+            local saveFile = saveFolder.."/custom_10.txt"
+            if not isfolder(saveFolder) then makefolder(saveFolder) end
+            local equipped = equippedPets()
+            local petsString = ""
+            if equipped then
+                for _, id in ipairs(equipped) do
+                    petsString = petsString..getPetNameUsingId(id)..">"..id.."|\n"
+                end
+            end
+            if equipped and #equipped > 0 then
+                M.customLoadout10:Set({Title = "Custom 10:", Content = petsString})
+                writefile(saveFile, petsString)
+                beastHubNotify("Saved Custom 10!", "", 3)
+            else
+                beastHubNotify("No pets equipped", "", 3)
+            end
+        end
+    })
+    Automation:CreateButton({
+        Name = "Load Custom 10",
+        Callback = function()
+            local equipped = equippedPets()
+            if equipped and #equipped > 0 then
+                for _, id in ipairs(equipped) do
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", id)
+                    task.wait()
+                end
+            end
+            local petIds = parseCustomFile(10)
+            if #petIds == 0 then beastHubNotify("Custom 10 is empty", "", 3) return end
+            local location = getPetEquipLocation()
+            for _, id in ipairs(petIds) do
+                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", id, location)
+                task.wait()
+            end
+            beastHubNotify("Loaded Custom 10", "", 3)
+        end
+    })
+    Automation:CreateDivider()
 
     --9 pets tech
     Automation:CreateSection("9 Pets Hatching team")
@@ -2129,7 +2456,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     Automation:CreateSection("Static loadout switching (NOT FOR AUTO HATCHING)")
     local switcher1 = Automation:CreateDropdown({
         Name = "First loadout",
-        Options = {"1", "2", "3", "4", "5", "6", "custom_1","custom_2","custom_3","custom_4"},
+        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4", "custom_5", "custom_6", "custom_7", "custom_8", "custom_9", "custom_10"},
         CurrentOption = {},
         MultipleOptions = false,
         Flag = "firstLoadoutAutoSwitch", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
@@ -2151,7 +2478,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     })
     local switcher2 = Automation:CreateDropdown({
         Name = "Second loadout",
-        Options = {"1", "2", "3", "4", "5", "6", "custom_1","custom_2","custom_3","custom_4"},
+        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4", "custom_5", "custom_6", "custom_7", "custom_8", "custom_9", "custom_10"},
         CurrentOption = {},
         MultipleOptions = false,
         Flag = "secondLoadoutAutoSwitch", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
