@@ -1,5 +1,8 @@
 local M = {}
 
+--global state flags
+M.isSafeToPickPlace = true
+
 function M.init(Rayfield, beastHubNotify, Window, myFunctions, reloadScript, beastHubIcon)
     -- ==Close Script Destroy Rayfield
     local function closeScript()
