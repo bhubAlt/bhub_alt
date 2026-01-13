@@ -127,7 +127,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                 if selectedFruitsForAutoFeed and #selectedFruitsForAutoFeed > 0 then
                                     local playerData = getPlayerData()
                                     if playerData then
-                                        local fruitUid = getFeedFruitUid2(playerData, selectedFruitsForAutoFeed) or nil
+                                        local fruitUid = getFeedFruitUid2(playerData, selectedFruitsForAutoFeed)
                                         if fruitUid then
                                             equipFruitById(fruitUid)
                                             task.wait()
