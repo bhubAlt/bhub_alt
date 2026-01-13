@@ -216,7 +216,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     })
     local dropdown_selectedFruitKGForAutoCollect = Plants:CreateInput({
         Name = "KG",
-        CurrentValue = "",
+        CurrentValue = "0",
         PlaceholderText = "number",
         RemoveTextAfterFocusLost = false,
         Flag = "autoCollect_kg",
@@ -335,7 +335,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 -- local kgMode = dropdown_selectedFruitKGmodeForAutoCollect.CurrentOption or {"Below"}
                 -- local kgValue = tonumber(dropdown_selectedFruitKGForAutoCollect.CurrentValue or 0)
 
-                --with retry logic
+                -- with retry logic
                 local fruits
                 local variants
                 local mutations
@@ -345,9 +345,10 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 local waited = 0
                 while waited < 5 do
                     fruits = dropdown_selectedFruitForAutoCollect and dropdown_selectedFruitForAutoCollect.CurrentOption
+                    kgMode = dropdown_selectedFruitKGmodeForAutoCollect and dropdown_selectedFruitKGmodeForAutoCollect.CurrentOption
                     kgValue = dropdown_selectedFruitKGForAutoCollect and tonumber(dropdown_selectedFruitKGForAutoCollect.CurrentValue)
                     delayToCollect = dropdown_delayToCollectFruits and tonumber(dropdown_delayToCollectFruits.CurrentValue)
-                    if typeof(fruits) == "table" and typeof(kgValue) == "number" then
+                    if typeof(fruits) == "table" and typeof(kgValue) == "number" and typeof(kgMode) == "table" then
                         break
                     end
                     task.wait(0.5)
@@ -356,13 +357,14 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 fruits = typeof(fruits) == "table" and fruits or {}
                 variants = dropdown_selectedFruitVariantForAutoCollect and dropdown_selectedFruitVariantForAutoCollect.CurrentOption or {}
                 mutations = dropdown_selectedFruitMutationForAutoCollect and dropdown_selectedFruitMutationForAutoCollect.CurrentOption or {}
-                kgMode = dropdown_selectedFruitKGmodeForAutoCollect and dropdown_selectedFruitKGmodeForAutoCollect.CurrentOption or {"Below"}
+                kgMode = typeof(kgMode) == "table" and kgMode or {"Below"}
                 kgValue = tonumber(kgValue)
                 if not kgValue then
                     beastHubNotify("Please enter a valid KG value", "", 5)
                     autoCollectFruitEnabled = false
                     return
                 end
+
 
                 delayToCollect = typeof(delayToCollect) == "number" and delayToCollect or 0 
 
