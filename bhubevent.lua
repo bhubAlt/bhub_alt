@@ -78,28 +78,15 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             if item.ItemType == "Holdable" then
                 local itemData = item.ItemData
                 if itemData and not itemData.IsFavorite then
-                    if table.find(selectedFruits, itemData.ItemName) then
+                    if selectedFruits and table.find(selectedFruits, itemData.ItemName) then
                         return uid
-                    end
-                end
-            elseif item.ItemType == "Food" then
-                local ingredients = item.ItemData and item.ItemData.Ingredients
-                if ingredients then
-                    for ingUid, ing in pairs(ingredients) do
-                        if ing.ItemType == "Holdable" then
-                            local ingData = ing.ItemData
-                            if ingData and not ingData.IsFavorite then
-                                if table.find(selectedFruits, ingData.ItemName) then
-                                    return ingUid
-                                end
-                            end
-                        end
                     end
                 end
             end
         end
         return nil
     end
+
 
 
     Event:CreateToggle({
@@ -127,8 +114,8 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                 if selectedFruitsForAutoFeed and #selectedFruitsForAutoFeed > 0 then
                                     local playerData = getPlayerData()
                                     if playerData then
-                                        local fruitUid = getFeedFruitUid2(playerData, selectedFruitsForAutoFeed) or nil
-                                        if fruitUid then
+                                        local fruitUid = getFeedFruitUid2(playerData, selectedFruitsForAutoFeed)
+                                        if fruitUid ~= nil then
                                             equipFruitById(fruitUid)
                                             task.wait()
                                             local args = {
