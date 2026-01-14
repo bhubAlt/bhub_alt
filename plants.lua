@@ -206,7 +206,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     local dropdown_selectedFruitKGmodeForAutoCollect = Plants:CreateDropdown({
         Name = "Below kg or Above kg",
         Options = {"Below", "Above"},
-        CurrentOption = {"Below"},
+        CurrentOption = {"Above"},
         MultipleOptions = false,
         Flag = "selectedFruitBelowOrAbove_autoCollect", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
         Callback = function(Options)
