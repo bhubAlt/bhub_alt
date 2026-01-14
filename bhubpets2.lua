@@ -455,17 +455,26 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     local autoPetMutationThread = nil
 
     local mutationList = getMachineMutationTypes()
-    Pets:CreateDropdown({
+    local dropdown_selectedMutations = Pets:CreateDropdown({
         Name = "Select Mutation/s",
         Options = mutationList,
         CurrentOption = {},
         MultipleOptions = true,
-        Flag = "selectedMutationsForAutoMutation", 
+        Flag = "selectedMutationsForAutoMutation",
         Callback = function(Options)
-            --if not Options or not Options[1] then return end
             selectedMutationsForAutoMutation = Options
         end,
     })
+    Pets:CreateButton({
+        Name = "Clear mutations",
+        Callback = function()
+            if dropdown_selectedMutations then
+                dropdown_selectedMutations:Set({})
+                selectedMutationsForAutoMutation = {}
+            end
+        end,
+    })
+
 
     -- local Toggle_autoHatchAfterAutoMutation = Pets:CreateToggle({
     --     Name = "Auto Hatch after Auto mutation",
