@@ -125,6 +125,20 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
             end)
         end,
     })
+
+    Plants:CreateButton({
+        Name = "Select all fruits",
+        Callback = function()
+            if allSeedsOnly then
+                local all = {}
+                for _, v in ipairs(allSeedsOnly) do
+                    table.insert(all, v)
+                end
+                dropdown_selectedFruitForAutoCollect:Set(all)
+            end
+        end,
+    })
+
     Plants:CreateButton({
         Name = "Clear fruit",
         Callback = function()
