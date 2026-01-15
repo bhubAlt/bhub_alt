@@ -357,7 +357,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 local kgValue
                 local delayToCollect
                 local waited = 0
-                while waited < 5 do
+                while waited < 30 do
                     fruits = dropdown_selectedFruitForAutoCollect and dropdown_selectedFruitForAutoCollect.CurrentOption
                     kgMode = dropdown_selectedFruitKGmodeForAutoCollect and dropdown_selectedFruitKGmodeForAutoCollect.CurrentOption
                     kgValue = dropdown_selectedFruitKGForAutoCollect and tonumber(dropdown_selectedFruitKGForAutoCollect.CurrentValue)
@@ -373,26 +373,26 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                 mutations = dropdown_selectedFruitMutationForAutoCollect and dropdown_selectedFruitMutationForAutoCollect.CurrentOption or {}
                 kgMode = typeof(kgMode) == "table" and kgMode or {"Below"}
                 kgValue = tonumber(kgValue)
-                if not kgValue then
-                    beastHubNotify("Please enter a valid KG value", "", 5)
-                    autoCollectFruitEnabled = false
-                    return
-                end
+                -- if not kgValue then
+                --     beastHubNotify("Please enter a valid KG value", "", 5)
+                --     autoCollectFruitEnabled = false
+                --     return
+                -- end
 
 
                 delayToCollect = typeof(delayToCollect) == "number" and delayToCollect or 0 
 
 
                 -- Input validation
-                if #fruits == 0 then
-                    beastHubNotify("Please select at least one fruit", "", 5)
-                    autoCollectFruitEnabled = false
-                    return
-                elseif not kgValue or kgValue < 0 then
-                    beastHubNotify("Please input a valid KG value", "", 5)
-                    autoCollectFruitEnabled = false
-                    return
-                end
+                -- if #fruits == 0 then
+                --     beastHubNotify("Please select at least one fruit", "", 5)
+                --     autoCollectFruitEnabled = false
+                --     return
+                -- elseif not kgValue or kgValue < 0 then
+                --     beastHubNotify("Please input a valid KG value", "", 5)
+                --     autoCollectFruitEnabled = false
+                --     return
+                -- end
 
                 -- Safe nils for variants and mutations
                 if #variants == 0 then variants = {nil} end
