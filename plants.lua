@@ -596,8 +596,25 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         Flag = "autoShovelPlant",
         Callback = function(Value)
             autoShovelPlantEnabled = Value
+            local skipFavs = true
 
             if autoShovelPlantEnabled then
+                local function hasFavFruit(plantModel)
+                    if not plantModel then
+                        return false
+                    end
+                    if plantModel:GetAttribute("Favorited") == true then
+                        return true
+                    end
+                    for _, obj in ipairs(plantModel:GetChildren()) do
+                        if hasFavFruit(obj) then
+                            return true
+                        end
+                    end
+                    return false
+                end
+
+
                 if autoShovelPlantThread then return end
                 autoShovelPlantThread = task.spawn(function()
                     while autoShovelPlantEnabled do
@@ -617,7 +634,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                             local allPlants = plantsFolder:GetChildren()
 
                             for _, plant in ipairs(allPlants) do
-                                if plant:IsA("Model") or plant:IsA("Folder") then
+                                if (plant:IsA("Model") or plant:IsA("Folder")) and not hasFavFruit(plant) then
                                     local curPlantName = plant.Name
                                     local plantMatch = table.find(selectedPlantsForAutoShovel, curPlantName) ~= nil
                                     if plantMatch and autoShovelPlantEnabled then
