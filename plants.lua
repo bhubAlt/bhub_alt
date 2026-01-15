@@ -663,6 +663,126 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
     })
     Plants:CreateDivider()
 
+    -- Auto Reclaim
+    Plants:CreateSection("Auto Reclaim Plant")
+    local selectedPlantsForAutoReclaim = {}
+
+    local dropdown_selectedPlantForAutoReclaim = Plants:CreateDropdown({
+        Name = "Select Plant",
+        Options = allSeedsOnly,
+        CurrentOption = {},
+        MultipleOptions = true,
+        Flag = "selectedPlant_autoReclaim",
+        Callback = function(Options)
+            selectedPlantsForAutoReclaim = Options
+        end,
+    })
+
+    local searchDebounce_reclaim = nil
+    Plants:CreateInput({
+        Name = "Search plant",
+        PlaceholderText = "plant",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            if searchDebounce_reclaim then
+                task.cancel(searchDebounce_reclaim)
+            end
+            searchDebounce_reclaim = task.delay(0.5, function()
+                local results = {}
+                local query = string.lower(Text)
+                if query == "" then
+                    results = allSeedsOnly
+                else
+                    for _, plantName in ipairs(allSeedsOnly) do
+                        if string.find(string.lower(plantName), query, 1, true) then
+                            table.insert(results, plantName)
+                        end
+                    end
+                end
+                dropdown_selectedPlantForAutoReclaim:Refresh(results)
+                dropdown_selectedPlantForAutoReclaim:Set(selectedPlantsForAutoReclaim)
+            end)
+        end,
+    })
+
+    Plants:CreateButton({
+        Name = "Clear plant",
+        Callback = function()
+            dropdown_selectedPlantForAutoReclaim:Set({})
+        end,
+    })
+
+    local autoReclaimPlantEnabled = false
+    local autoReclaimPlantThread = nil
+    Plants:CreateToggle({
+        Name = "Auto Reclaim Plant",
+        CurrentValue = false,
+        Flag = "autoReclaimPlant",
+        Callback = function(Value)
+            autoReclaimPlantEnabled = Value
+
+            if autoReclaimPlantEnabled then
+                local function hasFavFruit(plantModel)
+                    if not plantModel then
+                        return false
+                    end
+                    if plantModel:GetAttribute("Favorited") == true then
+                        return true
+                    end
+                    for _, obj in ipairs(plantModel:GetChildren()) do
+                        if hasFavFruit(obj) then
+                            return true
+                        end
+                    end
+                    return false
+                end
+
+                if autoReclaimPlantThread then return end
+                autoReclaimPlantThread = task.spawn(function()
+                    while autoReclaimPlantEnabled do
+                        if myFarm and #selectedPlantsForAutoReclaim > 0 then
+                            local important = myFarm:WaitForChild("Important", 3)
+                            if not important then
+                                task.wait(2)
+                                continue
+                            end
+                            local plantsFolder = important:FindFirstChild("Plants_Physical")
+                            if not plantsFolder then
+                                task.wait(2)
+                                continue
+                            end
+                            for _, plant in ipairs(plantsFolder:GetChildren()) do
+                                if (plant:IsA("Model") or plant:IsA("Folder")) and not hasFavFruit(plant) then
+                                    if table.find(selectedPlantsForAutoReclaim, plant.Name) and autoReclaimPlantEnabled then
+                                        equipItemByNameV2("Reclaimer")
+                                        local args = {
+                                            [1] = "TryReclaim",
+                                            [2] = plant,
+                                        }
+                                        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 5)
+                                            :WaitForChild("ReclaimerService_RE", 5)
+                                            :FireServer(unpack(args))
+                                        task.wait()
+                                    end
+                                end
+                            end
+                        end
+                        task.wait(0.2)
+                    end
+                    autoReclaimPlantThread = nil
+                end)
+            else
+                autoReclaimPlantEnabled = false
+                if autoReclaimPlantThread then
+                    autoReclaimPlantThread = nil
+                end
+            end
+        end,
+    })
+
+    Plants:CreateDivider()
+
+
     --auto shovel fruits
     Plants:CreateSection("Auto Shovel Fruit")
     local selectedFruitsForAutoShovel = {}
