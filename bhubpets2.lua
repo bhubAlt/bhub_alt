@@ -261,7 +261,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         for mutationName, _ in pairs(machineMutations) do
             table.insert(names, tostring(mutationName))
         end
-        -- table.insert(names, "Giant Golem")
+        table.insert(names, "GiantGolem")
         table.sort(names)
         return names
     end
@@ -743,6 +743,9 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                         for mutation, data in pairs(mutations) do --extract only enums
                             table.insert(machineMutationEnums, {mutation, data.EnumId})
                         end
+                        --insert added mutation enums here (example: Giant Golem)
+                        table.insert(machineMutationEnums, {"GiantGolem", "V"})
+
                         --get current pet mutation via enum
                         for _, entry in ipairs(machineMutationEnums) do
                             local mutation = entry[1]
@@ -917,6 +920,7 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                     --hold pet then submit      
                                     equipPetByUuid(uid)
                                     task.wait()
+
                                     local args = {
                                         [1] = "SubmitHeldPet"
                                     }
