@@ -1078,12 +1078,50 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         end,
     })
 
+    local levelingLoadoutA
+    Pets:CreateDropdown({
+        Name = "Leveling Loadout A",
+        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4", "custom_5", "custom_6", "custom_7", "custom_8", "custom_9", "custom_10"},
+        CurrentOption = {},
+        MultipleOptions = false,
+        Flag = "levelingLoadoutA", 
+        Callback = function(Options)
+            --if not Options or not Options[1] then return end
+            levelingLoadoutA = Options[1]
+        end,
+    })
+
     local targetLevelForAutoLevel = Pets:CreateInput({
-        Name = "Target Level",
+        Name = "Target Level (A)",
         CurrentValue = "",
         PlaceholderText = "input number..",
         RemoveTextAfterFocusLost = false,
         Flag = "autoLeveltargetLevel",
+        Callback = function(Text)
+        -- The function that takes place when the input is changed
+        -- The variable (Text) is a string for the value in the text box
+        end,
+    })
+
+    local levelingLoadoutB
+    Pets:CreateDropdown({
+        Name = "Leveling Loadout B",
+        Options = {"None", "1", "2", "3", "4", "5", "6", "custom_1", "custom_2", "custom_3", "custom_4", "custom_5", "custom_6", "custom_7", "custom_8", "custom_9", "custom_10"},
+        CurrentOption = {},
+        MultipleOptions = false,
+        Flag = "levelingLoadoutB", 
+        Callback = function(Options)
+            --if not Options or not Options[1] then return end
+            levelingLoadoutB = Options[1] or 100
+        end,
+    })
+
+    local targetLevelForAutoLevelB = Pets:CreateInput({
+        Name = "Target Level (B)",
+        CurrentValue = "",
+        PlaceholderText = "input number..",
+        RemoveTextAfterFocusLost = false,
+        Flag = "autoLeveltargetLevelB",
         Callback = function(Text)
         -- The function that takes place when the input is changed
         -- The variable (Text) is a string for the value in the text box
@@ -1121,31 +1159,41 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
 
             --
             local targetLevel = tonumber(targetLevelForAutoLevel.CurrentValue) or nil
+            local targetLevelB = tonumber(targetLevelForAutoLevelB.CurrentValue) or nil
             local isNum = targetLevel
+            local isNumB = targetLevelB
             local targetPetsForAutoLevel = Dropdown_petListForAutoLevel.CurrentOption or nil 
             
             -- Wait until Rayfield sets up the values (or timeout after 10s)
             local timeout = 3
             while timeout > 0 and (
-                (not levelingLoady or levelingLoady == "None") and not (levelingLoady and string.find(levelingLoady, "custom", 1, true))
+                (not levelingLoadoutA or levelingLoadoutA == "None") and not (levelingLoadoutA and string.find(levelingLoadoutA, "custom", 1, true))
+                or (not levelingLoadoutB or levelingLoadoutB == "None") and not (levelingLoadoutB and string.find(levelingLoadoutB, "custom", 1, true))
                 or targetPetsForAutoLevel == nil or targetPetsForAutoLevel == "None"
                 or not isNum
+                or not isNumB
             ) do
                 task.wait(1)
                 timeout = timeout - 1
                 targetLevel = tonumber(targetLevelForAutoLevel.CurrentValue)
+                targetLevelB = tonumber(targetLevelForAutoLevelB.CurrentValue)
                 isNum = targetLevel
+                isNumB = targetLevelB
             end
             
             --actual checker
-            if levelingLoady == nil or levelingLoady == "None" or Dropdown_petListForAutoLevel.CurrentOption == nil or Dropdown_petListForAutoLevel.CurrentOption[1] == "None" or not isNum then
+            if levelingLoadoutA == nil or levelingLoadoutA == "None" 
+            or levelingLoadoutB == nil or levelingLoadoutB == "None" 
+            or Dropdown_petListForAutoLevel.CurrentOption == nil or Dropdown_petListForAutoLevel.CurrentOption[1] == "None" 
+            or not isNum 
+            or not isNumB then
                 beastHubNotify("Setup missing", "Please also make sure you select Leveling Loadout", 3)
                 return
             end 
 
             beastHubNotify("Auto level running", "",3)
 
-            -- ï¿° Start auto-level thread
+            -- Start auto-level thread
             autoLevelThread = task.spawn(function()
                 local function getPlayerData()
                     local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
@@ -1236,9 +1284,9 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                     return nil
                 end
 
-                -- ï¿° Main Logic
+                -- Main Logic
                 --add loop for multi pets
-                for i, petName in ipairs(Dropdown_petListForAutoLevel.CurrentOption) do
+                for i, petName in ipairs(targetPetsForAutoLevel) do
                     --print("Selected pet:", petName)
 
                     local allMyPets = refreshPets()
@@ -1246,6 +1294,52 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                     local selectedPet = petName --changed to multi select
                     local petFound = false
 
+                    --OLD leveling method
+                    -- for _, pet in pairs(allMyPets) do 
+                    --     if not autoLevelEnabled then break end
+
+                    --     local curPet = pet.PetType
+                    --     -- local uid = pet.Uuid
+                    --     local uid = tostring(pet.Uid)
+                    --     local curLevel = pet.PetData.Level
+
+                    --     if curPet == selectedPet and curLevel < targetLevel then
+                    --         petFound = true
+                    --         beastHubNotify("Found: " .. curPet, "with level: " .. curLevel, "3")
+                    --         mainModule.isSafeToPickPlace = false
+                    --         task.wait(0.5)
+                    --         myFunctions.switchToLoadout(levelingLoady, getFarmSpawnCFrame, beastHubNotify)
+                    --         task.wait(6)
+
+                    --         local petEquipLocation = getPetEquipLocation()
+                    --         equipPetByUuid(uid)
+                    --         task.wait()
+                    --         mainModule.isSafeToPickPlace = true
+
+                    --         local args = { "EquipPet", uid, petEquipLocation }
+                    --         game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9)
+                    --             :WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                    --         task.wait(1)
+
+                    --         while autoLevelEnabled and curLevel < targetLevel do
+                    --             beastHubNotify("Current Pet age: " .. curLevel, "Waiting to hit age " .. targetLevel, 3)
+                    --             task.wait(10)
+                    --             curLevel = getCurrentPetLevelByUid(uid)
+                    --             if autoLevelEnabled and curLevel >= targetLevel then
+                    --                 beastHubNotify("Target level reached for: " .. curPet .. "!", "Done for this pet", 3)
+                    --                 task.wait(.5)
+                    --                 local args = { "UnequipPet", uid }
+                    --                 game:GetService("ReplicatedStorage")
+                    --                     :WaitForChild("GameEvents", 9e9)
+                    --                     :WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                    --                 task.wait(1)
+                    --                 break
+                    --             end
+                    --         end
+                    --     end
+                    -- end
+
+                    --NEW leveling method
                     for _, pet in pairs(allMyPets) do 
                         if not autoLevelEnabled then break end
 
@@ -1254,12 +1348,13 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                         local uid = tostring(pet.Uid)
                         local curLevel = pet.PetData.Level
 
+                        --A
                         if curPet == selectedPet and curLevel < targetLevel then
                             petFound = true
                             beastHubNotify("Found: " .. curPet, "with level: " .. curLevel, "3")
                             mainModule.isSafeToPickPlace = false
                             task.wait(0.5)
-                            myFunctions.switchToLoadout(levelingLoady, getFarmSpawnCFrame, beastHubNotify)
+                            myFunctions.switchToLoadout(levelingLoadoutA, getFarmSpawnCFrame, beastHubNotify)
                             task.wait(6)
 
                             local petEquipLocation = getPetEquipLocation()
@@ -1274,9 +1369,45 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
 
                             while autoLevelEnabled and curLevel < targetLevel do
                                 beastHubNotify("Current Pet age: " .. curLevel, "Waiting to hit age " .. targetLevel, 3)
-                                task.wait(10)
+                                task.wait(5)
                                 curLevel = getCurrentPetLevelByUid(uid)
                                 if autoLevelEnabled and curLevel >= targetLevel then
+                                    beastHubNotify("Target level reached for: " .. curPet .. "!", "Done for this pet", 3)
+                                    task.wait(.5)
+                                    local args = { "UnequipPet", uid }
+                                    game:GetService("ReplicatedStorage")
+                                        :WaitForChild("GameEvents", 9e9)
+                                        :WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                                    task.wait(1)
+                                    break
+                                end
+                            end
+                        end
+
+                        --B
+                        if curPet == selectedPet and curLevel < targetLevelB then
+                            petFound = true
+                            beastHubNotify("Found: " .. curPet, "with level: " .. curLevel, "3")
+                            mainModule.isSafeToPickPlace = false
+                            task.wait(0.5)
+                            myFunctions.switchToLoadout(levelingLoadoutB, getFarmSpawnCFrame, beastHubNotify)
+                            task.wait(6)
+
+                            local petEquipLocation = getPetEquipLocation()
+                            equipPetByUuid(uid)
+                            task.wait()
+                            mainModule.isSafeToPickPlace = true
+
+                            local args = { "EquipPet", uid, petEquipLocation }
+                            game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9)
+                                :WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                            task.wait(1)
+
+                            while autoLevelEnabled and curLevel < targetLevelB do
+                                beastHubNotify("Current Pet age: " .. curLevel, "Waiting to hit age " .. targetLevelB, 3)
+                                task.wait(5)
+                                curLevel = getCurrentPetLevelByUid(uid)
+                                if autoLevelEnabled and curLevel >= targetLevelB then
                                     beastHubNotify("Target level reached for: " .. curPet .. "!", "Done for this pet", 3)
                                     task.wait(.5)
                                     local args = { "UnequipPet", uid }
