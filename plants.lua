@@ -918,11 +918,12 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
                                                     end
                                                 end
                                             else
+                                                if not autoShovelFruitEnabled then break end
                                                 if table.find(fruits, plant.Name)
                                                     and hasMatchingVariant(plant, variants)
                                                     and hasMatchingMutation(plant, mutations)
                                                     and kgAllowed(plant, kgMode, kgValue)
-                                                    and not isFavorited(fruit)
+                                                    and not isFavorited(plant)
                                                 then
                                                     equipItemByExactName("Shovel [Destroy Plants]")
                                                     task.wait()
