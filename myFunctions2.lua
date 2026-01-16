@@ -586,31 +586,49 @@ function M.loadCustomTeamDropdown(mimicsListFor9Pets, spiderFor9Pets, eagleFor9P
 
 
 
-
-	local equipped = equippedPets()
-	if equipped and #equipped > 0 then
-		for _, id in ipairs(equipped) do
-			game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", id)
-			task.wait()
-		end
-	end
-	local location = getPetEquipLocation()
-	local petIds = parseFromDropdown()
-	if #petIds == 0 then
-		beastHubNotify("Missing setup! Check Automations tab -> 9 Pets tech", "", 3)
-		return
-	end
-	for _, id in ipairs(petIds) do
-		game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", id, location)
-		task.wait()
-	end
+    -- --unequip then equip mimics
+	-- local equipped = equippedPets()
+	-- if equipped and #equipped > 0 then
+	-- 	for _, id in ipairs(equipped) do
+	-- 		game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", id)
+	-- 		task.wait()
+	-- 	end
+	-- end
+	-- local location = getPetEquipLocation()
+	-- local petIds = parseFromDropdown()
+	-- if #petIds == 0 then
+	-- 	beastHubNotify("Missing setup! Check Automations tab -> 9 Pets tech", "", 3)
+	-- 	return
+	-- end
+	-- for _, id in ipairs(petIds) do
+	-- 	game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", id, location)
+	-- 	task.wait()
+	-- end
     
-
+    local location = getPetEquipLocation()
     task.spawn(function()
         while not M.techControl.stop do
-            -- beastHubNotify("techControl: "..tostring(techControl.stop),"",3)
             if spiderFor9Petsid and not M.techControl.stop then
-                -- beastHubNotify("Spider time delay: "..tostring(delayToStayInSpider), "", delayToStayInSpider)
+
+                --unequip then equip mimics
+                local equipped = equippedPets()
+                if equipped and #equipped > 0 then
+                    for _, id in ipairs(equipped) do
+                        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", id)
+                        task.wait()
+                    end
+                end
+                local petIds = parseFromDropdown()
+                if #petIds == 0 then
+                    beastHubNotify("Missing setup! Check Automations tab -> 9 Pets tech", "", 3)
+                    return
+                end
+                for _, id in ipairs(petIds) do
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", id, location)
+                    task.wait()
+                end
+                --unequip then equip mimics end
+
                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", spiderFor9Petsid, location)
                 waitWithStop("Spider delay: ", delayToStayInSpider)
                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", spiderFor9Petsid)
@@ -619,7 +637,26 @@ function M.loadCustomTeamDropdown(mimicsListFor9Pets, spiderFor9Pets, eagleFor9P
                 break
             end
             if eagleFor9Petsid and not M.techControl.stop then
-                -- beastHubNotify("Eagle time delay: "..tostring(delayToStayInEagle), "", delayToStayInEagle)
+                
+                --unequip then equip mimics
+                local equipped = equippedPets()
+                if equipped and #equipped > 0 then
+                    for _, id in ipairs(equipped) do
+                        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", id)
+                        task.wait()
+                    end
+                end
+                local petIds = parseFromDropdown()
+                if #petIds == 0 then
+                    beastHubNotify("Missing setup! Check Automations tab -> 9 Pets tech", "", 3)
+                    return
+                end
+                for _, id in ipairs(petIds) do
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", id, location)
+                    task.wait()
+                end
+                --unequip then equip mimics end
+
                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("EquipPet", eagleFor9Petsid, location)
                 waitWithStop("Eagle delay: ", delayToStayInEagle)
                 game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer("UnequipPet", eagleFor9Petsid)
