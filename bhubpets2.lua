@@ -23,11 +23,11 @@ function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equ
         MultipleOptions = false,
         Flag = "autoFavMode",
         Callback = function(Options)
-            if autoFavToggle then
-                autoFavToggle:Set(false)
-                autoFavEnabled = false
-                autoFavThread = nil
-            end
+            -- if autoFavToggle then
+            --     autoFavToggle:Set(false)
+            --     autoFavEnabled = false
+            --     autoFavThread = nil
+            -- end
         end,
     })
     local dropdown_petToAutoFav = Pets:CreateDropdown({
