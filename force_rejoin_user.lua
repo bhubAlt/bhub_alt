@@ -1,1 +1,1 @@
-return {"iBeast_28"}
+return {"iBeast_28", "bladstaz01"}
