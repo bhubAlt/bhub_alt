@@ -1,1 +1,1 @@
-return {"KuriTest0"}
+return {""}
