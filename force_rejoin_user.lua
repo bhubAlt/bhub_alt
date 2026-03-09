@@ -1,1 +1,1 @@
-return {"xVivid21"}
+return {""}
