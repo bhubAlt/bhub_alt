@@ -1,1 +1,1 @@
-return {"Voxtrevor2 "}
+return {"Voxtrevor2"}
