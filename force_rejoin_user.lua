@@ -1,1 +1,1 @@
-return {"max1234444343", "bladstaz01"}
+return {"max1234444343"}
