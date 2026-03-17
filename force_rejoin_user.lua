@@ -1,1 +1,1 @@
-return {"max1234444343", "NImbzbo"}
+return {"max1234444343"}
